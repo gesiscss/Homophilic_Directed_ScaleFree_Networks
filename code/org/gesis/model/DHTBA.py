@@ -1,0 +1,265 @@
+############################################
+# System dependencies
+############################################
+import networkx as nx
+import numpy as np
+
+############################################
+# Local dependencies
+############################################
+from org.gesis.libs.network import power_law_distribution
+from org.gesis.libs.network import random_draw
+from org.gesis.libs import triads as tri
+
+################################################################################
+# Constants
+################################################################################
+
+TRIADS_NTYPES = 12
+CLASS_LABEL = 'color'
+MINORITY = 'red'
+MAJORITY = 'blue'
+LABELS = [MAJORITY, MINORITY]
+GROUPS = ['M', 'm']
+LABEL = 'minority'
+TRIAD_IDS = tri.get_triads_ids()
+
+################################################################################
+# Model
+################################################################################
+
+def directed_homophilic_triadic_barabasi_albert_graph(N, kmin, density, minority_fraction, h_mm, h_MM, gamma_m, gamma_M,
+                                                      triads_ratio=0, triads_pdf=[1 / TRIADS_NTYPES] * TRIADS_NTYPES,
+                                                      seed=None):
+    """
+    Return random triadic homophilic directed graph using BA preferential attachment model.
+
+    A graph of N nodes is grown by attaching new nodes each with m
+    edges that are preferentially attached to existing nodes with high
+    degree. The connections are established by either creating triads or
+    by linking probability which depends on the connectivity of sites
+    and the similitude (similarities).
+    similitude varies ranges from 0 to 1.
+
+    Parameters
+    ----------
+    N : int
+        Number of nodes
+
+    kmin : int
+        Number of edges to attach from a new node to existing nodes
+
+    density : float
+        Density of the network: E / N(N-1)
+
+    minority_fraction : float
+        Fraction of minorities in the network
+
+    h_mm: float
+        Homophily (similarity) among minority nodes. Value between 0.0 to 1.0
+
+    h_MM: float
+        Homophily (similarity) among majority nodes. Value between 0.0 to 1.0
+
+    gamma_m: float
+        Exponent of power-law for outdegree distribution of minority nodes.
+
+    gamma_M: float
+        Exponent of power-law for outdegree distribution of majority nodes.
+
+    triads_ratio : float
+        Fraction of triads among all possible triads
+
+    triads_pdf : list of floats
+        Probability density function
+
+
+    Returns
+    -------
+    G : nx.DiGraph
+
+
+    Notes
+    -----
+    The initialization is a DiGraph with with N nodes and no edges.
+    Minorities are represented as group=1 (color=red), and majorities as group=0 (color=blue).
+    - Homophily between minorty: h_mm
+    - Homophily between majority: h_MM
+    """
+
+    np.random.seed(seed)
+
+    ############################################################################
+    # 1. Initializing expected values
+    ############################################################################
+    EXPECTED_E = int(round(density * N * (N - 1)))
+    START = int(round(N * 0.01))
+    ADD_NEW_EDGES = max(1, int(round((EXPECTED_E - (kmin * (N - kmin))) / (N - START))))
+
+    print("density: {}".format(density))
+    print("EXPECTED_E: {}".format(EXPECTED_E))
+    print("ADD_NEW_EDGES (y): {}".format(ADD_NEW_EDGES))
+    print("START (x): {}".format(START))
+    print('')
+
+    ############################################################################
+    # 2. Initializing graph
+    ############################################################################
+    G = nx.DiGraph()
+    G.graph['name'] = 'DHTBA'
+    G.graph['class'] = CLASS_LABEL
+    G.graph['minority'] = MINORITY
+    G.graph['labels'] = LABELS
+    G.graph['groups'] = GROUPS
+
+    G.graph['N'] = N
+    G.graph['kmin'] = kmin
+    G.graph['density'] = density
+    G.graph['fm'] = minority_fraction
+    G.graph['h_MM'] = h_MM
+    G.graph['h_mm'] = h_mm
+    G.graph['gamma_M'] = gamma_M
+    G.graph['gamma_m'] = gamma_m
+    G.graph['triads_ratio'] = triads_ratio
+    G.graph['triads_pdf'] = triads_pdf
+    G.graph['seed'] = seed
+
+    ############################################################################
+    # 3. Adding nodes with their respective membership class
+    ############################################################################
+    minority = int(minority_fraction * N)
+    minority_nodes = np.random.choice(a=np.arange(N), size=minority, replace=False)
+    G.add_nodes_from([(n, {CLASS_LABEL: MINORITY if n in minority_nodes else MAJORITY,
+                           LABEL: int(n in minority_nodes),
+                           'group': GROUPS[int(n in minority_nodes)],
+                           }) for n in range(N)])
+
+    ############################################################################
+    # 4. Homophily values
+    ############################################################################
+    h_mm = 0.9999999999 if h_mm == 1.0 else 0.0000000001 if h_mm == 0 else h_mm
+    h_MM = 0.9999999999 if h_MM == 1.0 else 0.0000000001 if h_MM == 0 else h_MM
+
+    homophily_dic = {(1, 1): h_mm,
+                     (1, 0): 1 - h_mm,
+                     (0, 0): h_MM,
+                     (0, 1): 1 - h_MM}
+
+    ############################################################################
+    # 5. Activity (outdegree)
+    ############################################################################
+    k_min_activity = 1.0
+    activity_distribution = np.zeros(N)
+    activity_distribution[minority_nodes] = power_law_distribution(k_min_activity, gamma_m, minority)
+    activity_distribution[[n for n in G.nodes() if n not in minority_nodes]] = power_law_distribution(k_min_activity, gamma_M, N - minority)
+    activity_distribution = activity_distribution / activity_distribution.sum()
+
+    ############################################################################
+    # 6. Preferential Attachment Algorithm + Homophily + Direction
+    ############################################################################
+    target_list = np.arange(kmin).tolist()
+    total_edges = 0
+    existing_dist = []
+    counter = 0
+
+    for source in np.arange(kmin, N, 1):
+
+        # 6.1. Adding new kmin edges: new node --> existing node (min outdegree)
+        targets = _pick_targets(G, source, target_list, homophily_dic, min(kmin, len(target_list)), triads_ratio,
+                                triads_pdf)
+
+        if targets is None:
+            continue
+
+        if len(targets) > 0:
+            G.add_edges_from(zip([source] * len(targets), targets))
+            total_edges += len(targets)
+        target_list.append(source)
+
+        # 6.2. Adding new edge: existing node --> existing node
+        new_added = 0
+        if source > START and total_edges < EXPECTED_E:
+
+            # 6.2.1. Picking nodes based on activity_distribution (outdegree) - powerlaw
+            existing_nodes = random_draw(target_list, activity_distribution)
+            for existing_node in existing_nodes:
+                existing_dist.append(existing_node)
+
+                # 6.2.2. Picking target nodes based on homophily + pref attach. or triads
+                targets = _pick_targets(G, existing_node, target_list, homophily_dic, len(target_list), triads_ratio,
+                                        triads_pdf)
+                if targets is None:
+                    continue
+
+                for target in targets:
+                    if (target != existing_node):
+                        if not G.has_edge(existing_node, target):
+                            G.add_edge(existing_node, target)
+                            total_edges += 1
+                            new_added += 1
+                            break  # so, only adds 1
+                        else:
+                            counter += 1
+
+                # 6.2.3. Only adding the necessary
+                if new_added >= ADD_NEW_EDGES or total_edges >= EXPECTED_E:
+                    break
+
+    print("{} times, an edge was not inserted".format(counter))
+    return G, existing_dist
+
+def _pick_targets(G, source, target_list, homophily_dic, kmin, triads_ratio, triads_pdf):
+    triad = np.random.choice([False, True], p=[1 - triads_ratio, triads_ratio])
+    if triad:
+        # TRIADS command
+        prob = np.array([0 for target in target_list])
+
+        triad_type = TRIAD_IDS[np.random.choice(np.arange(len(triads_pdf)), p=triads_pdf)]
+
+        source_neighbors = set(G.neighbors(source))
+        for i, target in enumerate(target_list):
+            target_neighbors = set(G.neighbors(target))
+
+            for middle in source_neighbors.intersection(target_neighbors):
+                for keycode in tri.get_labeled_triads(G, 'group', source, middle, target):
+                    code = tri.get_code(keycode)
+
+                    if code == triad_type:
+                        prob[i] += 1
+
+    else:
+        # homphily and preferential attachment (indegree) commands
+        prob = np.array(
+            [homophily_dic[(G.node[source][LABEL], G.node[target][LABEL])] * (G.in_degree(target) + 1) for target in
+             target_list])
+
+    if prob.sum() == 0:
+        return None
+
+    prob = prob / prob.sum()
+    return np.random.choice(a=target_list, size=min([kmin, np.count_nonzero(prob)]), replace=False, p=prob)
+
+
+################################################################################
+# main
+################################################################################
+
+if __name__ == '__main__':
+    graph = directed_homophilic_triadic_barabasi_albert_graph(N=1000,
+                                                              kmin=2,
+                                                              density=0.001,
+                                                              minority_fraction=0.1,
+                                                              h_MM=0.5,
+                                                              h_mm=0.5,
+                                                              gamma_m=3.0,
+                                                              gamma_M=3.0,
+                                                              triads_ratio=0.5,
+                                                              triads_pdf=[0.34, 0.2, 0.1, 0.04, 0.04, 0.04, 0.04, 0.04, 0.04,
+                                                                          0.04, 0.04, 0.04])
+    print(nx.info(graph))
+
+
+
+
+
+
