@@ -64,7 +64,7 @@ def get_nodes_metadata(graph):
     ind = A.sum(axis=0).flatten().tolist()[0]
     outd = A.sum(axis=1).flatten().tolist()[0]
     pr = pagerank_power(A, p=0.85).tolist()
-    minoriy = [graph.node[n][graph.graph['label'][0]] for n in nodes]
+    minoriy = [graph.node[n][graph.graph['label']] for n in nodes]
 
     df = pd.DataFrame({'node':nodes,
                        'minority':minoriy,
