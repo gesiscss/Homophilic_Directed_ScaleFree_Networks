@@ -72,8 +72,14 @@ def directed_barabasi_albert_graph(N, kmin, density, minority_fraction, gamma_m,
     # 1. Initializing expected values
     ############################################################################
     EXPECTED_E = int(round(density * N * (N - 1)))
-    START = int(round(N * 0.01))
-    ADD_NEW_EDGES = max(1, int(round(((kmin * (N - kmin)) - EXPECTED_E) / (START - N))))
+    ORGANIC_E = N * kmin
+    NEW_EDGES = EXPECTED_E - ORGANIC_E
+    START = N - NEW_EDGES if NEW_EDGES < N and NEW_EDGES > 0 else int(round(N * 1 / 100))
+    ADD_NEW_EDGES = 1 if NEW_EDGES < N else int(round(NEW_EDGES / ((N - START) * kmin)))
+
+    # EXPECTED_E = int(round(density * N * (N - 1)))
+    # START = int(round(N * 0.01))
+    # ADD_NEW_EDGES = max(1, int(round(((kmin * (N - kmin)) - EXPECTED_E) / (START - N))))
 
     print("density: {}".format(density))
     print("EXPECTED_E: {}".format(EXPECTED_E))

@@ -3,6 +3,7 @@
 ####################################################################
 import networkx as nx
 import time
+import os
 
 ####################################################################
 # Local dependencies
@@ -26,13 +27,13 @@ kDHTBA = 'DHTBA'
 ####################################################################
 # functions
 ####################################################################
-def get_homophily(kind, fm, EMM, EMm, EmM, Emm):
+def get_homophily(kind, fm, EMM, EMm, EmM, Emm, gammaM_in, gammam_in):
     if kind in [kDBA, kDT]:
         return 0.5, 0.5
     if kind == kDH:
         return DH.estimate_homophily_empirical(graph=None, fm=fm, EMM=EMM, EMm=EMm, EmM=EmM, Emm=Emm, verbose=False)
     if kind == kDHBA:
-        return DHBA.estimate_homophily_empirical(graph=None, fm=fm, EMM=EMM, EMm=EMm, EmM=EmM, Emm=Emm, verbose=False)
+        return DHBA.estimate_homophily_empirical(graph=None, fm=fm, EMM=EMM, EMm=EMm, EmM=EmM, Emm=Emm, gammaM_in=gammaM_in, gammam_in=gammam_in, verbose=False)
     if kind == kDHTBA:
         raise NotImplementedError('Not implemented yet.')
 
@@ -125,10 +126,18 @@ class DirectedGraph(object):
         print()
         print('created in {} seconds.'.format(self.duration))
 
-    def save(self, fn):
-        save_gpickle(self.G,fn)
+    def save(self, output, epoch=None):
+        fn = self.get_filename(epoch)
+        save_gpickle(self.G,os.path.join(output,fn))
 
-
+    def get_filename(self, epoch=None):
+        return '{}-N{}-kmin{}-fm{}-hMM{}-hmm{}{}.gpickle'.format(self.kind,
+                                                                 self.N,
+                                                                 self.kmin,
+                                                                 round(self.minority_fraction,1),
+                                                                 round(self.h_MM,2),
+                                                                 round(self.h_mm,2),
+                                                                 '-ID{}'.format(epoch) if epoch is not None else '')
 
 
     '''

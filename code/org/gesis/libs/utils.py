@@ -1,7 +1,7 @@
 from collections import Counter
 import numpy as np
+import powerlaw
 import time
-from org.gesis.libs.powerlaw import get_exponent
 
 
 CLASSNAME = 'minority'
@@ -29,24 +29,49 @@ def get_minority_fraction(graph):
 def get_min_degree(graph):
     return min([d for n, d in graph.degree()])
 
+def fit_power_law(data):
+    return powerlaw.Fit(data, xmin=min(data), xmax=max(data), discrete=not (min(data) > 0 and min(data) < 1))
 
 def get_outdegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.out_degree() if graph.node[n][CLASSNAME] == 0])
-    alpha_M, sigma_M = get_exponent(x)
+    fitM = fit_power_law(x)
 
     x = np.array([d for n, d in graph.out_degree() if graph.node[n][CLASSNAME] == 1])
-    alpha_m, sigma_m = get_exponent(x)
+    fitm = fit_power_law(x)
 
-    return alpha_M, sigma_M, alpha_m, sigma_m
+    return fitM.power_law.alpha, fitM.power_law.xmin, fitm.power_law.alpha, fitm.power_law.xmin
+
 
 def get_indegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.in_degree() if graph.node[n][CLASSNAME] == 0])
-    alpha_M, sigma_M = get_exponent(x)
+    fitM = fit_power_law(x)
 
     x = np.array([d for n, d in graph.in_degree() if graph.node[n][CLASSNAME] == 1])
-    alpha_m, sigma_m = get_exponent(x)
+    fitm = fit_power_law(x)
 
-    return alpha_M, sigma_M, alpha_m, sigma_m
+    return fitM.power_law.alpha, fitM.power_law.xmin, fitm.power_law.alpha, fitm.power_law.xmin
+
+
+
+
+
+    # x = np.array([d for n, d in graph.out_degree() if graph.node[n][CLASSNAME] == 0])
+    # gamma_M, sigma_M = get_exponent(x)
+    #
+    # x = np.array([d for n, d in graph.out_degree() if graph.node[n][CLASSNAME] == 1])
+    # gamma_m, sigma_m = get_exponent(x)
+    #
+    # return gamma_M, sigma_M, gamma_m, sigma_m
+
+
+    #
+    # x = np.array([d for n, d in graph.in_degree() if graph.node[n][CLASSNAME] == 0])
+    # gamma_M, sigma_M = get_exponent(x)
+    #
+    # x = np.array([d for n, d in graph.in_degree() if graph.node[n][CLASSNAME] == 1])
+    # gamma_m, sigma_m = get_exponent(x)
+    #
+    # return gamma_M, sigma_M, gamma_m, sigma_m
 
 # def get_homophily(graph, smooth=1):
 #     precision = 1
