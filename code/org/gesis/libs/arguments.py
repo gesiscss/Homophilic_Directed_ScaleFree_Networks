@@ -4,8 +4,8 @@ from org.gesis.libs.utils import printf
 def init_batch_generate_network():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-kind', action='store',
-                        dest='kind',
+    parser.add_argument('-model', action='store',
+                        dest='model',
                         required=True,
                         choices=["DBA","DH","DT","DHBA","DHTBA"],
                         help='Network type model (synthetic).',
@@ -58,13 +58,11 @@ def init_batch_generate_network():
     parser.add_argument('-hmm', action='store',
                         dest='h_mm',
                         type=float,
-                        #default=0.5,
                         help='Homophily within minorities.')
 
     parser.add_argument('-hMM', action='store',
                         dest='h_MM',
                         type=float,
-                        #default=0.5,
                         help='Homophily within majorities.')
 
     parser.add_argument('-tr', action='store',
@@ -80,6 +78,13 @@ def init_batch_generate_network():
                         #default=[1/12]*12,
                         help='Fraction of triads among all possible triads [mmm, mnm, MMM, MNM, mmN, mmM, mMn, nMm, nMM, mMM, mNM, mMN].')
 
+    parser.add_argument('-epoch', action='store',
+                        dest='epoch',
+                        type=int,
+                        default=1,
+                        help='A specific iteration (epoch out of iter).',
+                        )
+
     parser.add_argument('-output', action='store',
                         dest='output',
                         default=None,
@@ -92,7 +97,7 @@ def init_batch_generate_network():
     print("===================================================")
     print("= ARGUMENTS PASSED:                               =")
     print("===================================================")
-    print('kind ................... = ', results.kind)
+    print('model .................. = ', results.model)
     print('N ...................... = ', results.N)
     print('m ...................... = ', results.m)
     print('density ................ = ', results.density)
@@ -103,19 +108,20 @@ def init_batch_generate_network():
     print('gamma_M ................ = ', results.gamma_M)
     print('triads_ratio ........... = ', results.triads_ratio)
     print('triads_pdf ............. = ', results.triads_pdf)
+    print('epoch .................. = ', results.epoch)
     print('output ................. = ', results.output)
     print("===================================================")
-    printf("INIT")
+    printf("init_batch_generate_network")
     return results
 
 
 def init_batch_model_fit():
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('-kind', action='store',
-                        dest='kind',
+    parser.add_argument('-model', action='store',
+                        dest='model',
                         required=True,
-                        choices=["DBA", "DH", "DT", "DHBA", "DHTBA"],
+                        choices=["DBA", "DH", "DHBA", "DHTBA", "DT"],
                         help='Network type model (synthetic).',
                         )
 
@@ -134,18 +140,27 @@ def init_batch_model_fit():
                         help='Number of nodes.',
                         )
 
+    parser.add_argument('-kmin', action='store',
+                        dest='kmin',
+                        required=True,
+                        type=int,
+                        default=None,
+                        help='Minimun degree.',
+                        )
+
+    parser.add_argument('-density', action='store',
+                        dest='density',
+                        required=True,
+                        type=float,
+                        default=None,
+                        help='Edge density.',
+                        )
+
     parser.add_argument('-epoch', action='store',
                         dest='epoch',
                         type=int,
                         default=1,
                         help='A specific iteration (epoch out of iter).',
-                        )
-
-    parser.add_argument('-iter', action='store',
-                        dest='iter',
-                        type=int,
-                        default=1,
-                        help='Total number of iterations of the same kind.',
                         )
 
     parser.add_argument('-output', action='store',
@@ -161,11 +176,13 @@ def init_batch_model_fit():
     print("===================================================")
     print("= ARGUMENTS PASSED:                               =")
     print("===================================================")
-    print('kind ................... = ', results.kind)
+    print('model .................. = ', results.model)
+    print('dataset ................ = ', results.dataset)
     print('N ...................... = ', results.N)
+    print('kmin ................... = ', results.kmin)
+    print('density ................ = ', results.density)
     print('epoch .................. = ', results.epoch)
-    print('iter ................... = ', results.iter)
     print('output ................. = ', results.output)
     print("===================================================")
-    printf("INIT")
+    printf("init_batch_model_fit")
     return results

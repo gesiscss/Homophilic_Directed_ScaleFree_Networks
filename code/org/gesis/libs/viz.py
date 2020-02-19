@@ -55,3 +55,113 @@ def _plot_empirical_and_powerlaw_fit(x, **kwargs):
     ####
     ax.set_ylabel(u"p(X)")
     ax.set_xlabel(x)
+
+def plot_empirical_rankings(df_rank, df_summary, sharey=True, fn=None):
+    tmp = df_rank.query("kind=='empirical'").copy()
+
+    #### this code is temporal, until pokec and github (empirical) copmute cot and wtf
+    ds = ['pokec', 'github']
+    for metric in ['circle_of_trust', 'wtf']:
+        tmp2 = df_rank.query("dataset.str.lower() in @ds & metric=='pagerank' & kind == 'empirical' ").copy()
+        tmp2.loc[:, 'fmt'] = 0
+        tmp2.loc[:, 'metric'] = metric
+        tmp = tmp.append(tmp2, ignore_index=True)
+        del (tmp2)
+    #### end.
+
+    tmp['rank'] = tmp['rank'].astype(int)
+    tmp.sort_values('dataset', inplace=True)
+
+    metric_order = ['pagerank', 'circle_of_trust', 'wtf']
+    fg = sns.catplot(data=tmp,
+                     col='dataset',
+                     hue='metric', hue_order=metric_order,
+                     x='rank', y='fmt',
+                     kind='point',
+                     sharey=sharey,
+                     palette='Set2',
+                     height=3, aspect=1, )
+
+    for ax in fg.axes.flatten():
+        dataset = ax.get_title().split(" = ")[-1].lower()
+        tmp = df_summary.query("dataset.str.lower()==@dataset.lower()").copy()
+
+        ### baseline, actual minority fraction
+        minority_fraction = tmp.fm.mean()
+        ax.axhline(minority_fraction, lw=1, c='black', ls='--')
+
+        ### Values of homophily and outdegree distr. exponent
+        x=2
+        y= 0.05 if dataset == 'aps' else 0.4 if dataset in ['github','wikipedia'] else 0.2 if dataset == 'pokec' else 0
+
+        s = r'$h_{MM}, h_{mm}=(' + str(round(tmp.hMM.mean(), 2)) + ',' + str(round(tmp.hmm.mean(), 2)) + ')' + \
+            '$ \n $\gamma_{M},\gamma_{m}=(' + str(round(tmp.gammaM.mean(), 2)) + ',' + str(
+            round(tmp.gammam.mean(), 2)) + ')' + \
+            '$'
+        ax.text(x=x, y=y, s=s)
+
+        ### xticklabels
+        ax.set_xticklabels(label if i in [1, 5, 9] else '' for i, label in enumerate(ax.get_xticklabels()))
+        ax.set_xlabel('k%')
+        ax.set_ylabel('Fraction of minorities in Top-k%')
+
+    if fn is not None:
+        fg.savefig(fn, bbox_inches='tight')
+        print('{} saved!'.format(fn))
+
+def plot_model_fit(df_rank, df_summary, metric="pagerank", sharey=True, fn=None):
+
+
+    tmp = df_rank.query("metric==@metric").copy()
+
+    #### this code is temporal, until pokec and github (empirical) copmute cot and wtf
+    if metric != 'pagerank':
+        ds = ['pokec','github']
+        tmp2 = df_rank.query("dataset.str.lower() in @ds & metric=='pagerank' & kind == 'empirical' ").copy()
+        tmp2.loc[:,'fmt'] = 0
+        tmp = tmp.append(tmp2, ignore_index=True)
+        del (tmp2)
+    #### end.
+
+    tmp['rank'] = tmp['rank'].astype(int)
+    tmp.sort_values('dataset', inplace=True)
+
+    kind_order = ['empirical','DH','DBA','DHBA']
+    fg = sns.catplot(data=tmp,
+                     col='dataset',
+                     hue='kind', hue_order=kind_order,
+                     x='rank', y='fmt',
+                     kind='point',
+                     sharey=sharey,
+                     height=3, aspect=1, )
+
+    for ax in fg.axes.flatten():
+        dataset = ax.get_title().split(" = ")[-1]
+        tmp = df_summary.query("dataset.str.lower()==@dataset.lower()").copy()
+
+        ### baseline, actual minority fraction
+        minority_fraction = tmp.fm.mean()
+        ax.axhline(minority_fraction, lw=1, c='black', ls='--')
+
+        ### Values of homophily and outdegree distr. exponent
+        if metric in ['pagerank','circle_of_trust']:
+            x = 2
+            y = 0.1 if dataset.lower() in ['aps', 'pokec'] else 0.3
+        else:
+            x = 2
+            y = 0.7 if dataset.lower() in ['aps', 'pokec'] else 0.4
+
+        s = r'$h_{MM}, h_{mm}=(' + str(round(tmp.hMM.mean(), 2)) + ',' + str(round(tmp.hmm.mean(), 2)) + ')' + \
+            '$ \n $\gamma_{M},\gamma_{m}=(' + str(round(tmp.gammaM.mean(), 2)) + ',' + str(
+            round(tmp.gammam.mean(), 2)) + ')' + \
+            '$'
+        ax.text(x=x, y=y, s=s)
+
+        ### xticklabels
+        ax.set_xticklabels(label if i in [1,5,9] else '' for i,label in enumerate(ax.get_xticklabels()))
+        ax.set_xlabel('k%')
+        ax.set_ylabel('Fraction of minorities in Top-k%')
+
+    if fn is not None:
+        fg.savefig(fn, bbox_inches='tight')
+        print('{} saved!'.format(fn))

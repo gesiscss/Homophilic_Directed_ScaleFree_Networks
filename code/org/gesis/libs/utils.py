@@ -16,7 +16,6 @@ def get_graph_metadata(graph, attribute):
         return graph.graph[attribute]
     return None
 
-
 def get_edge_type_counts(graph):
     counts = Counter(['{}{}'.format(graph.graph['groups'][graph.node[edge[0]][CLASSNAME]],
                                     graph.graph['groups'][graph.node[edge[1]][CLASSNAME]]) for edge in graph.edges()])
@@ -40,7 +39,6 @@ def get_outdegree_powerlaw_exponents(graph):
     fitm = fit_power_law(x)
 
     return fitM.power_law.alpha, fitM.power_law.xmin, fitm.power_law.alpha, fitm.power_law.xmin
-
 
 def get_indegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.in_degree() if graph.node[n][CLASSNAME] == 0])

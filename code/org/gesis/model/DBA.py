@@ -85,6 +85,7 @@ def directed_barabasi_albert_graph(N, kmin, density, minority_fraction, gamma_m,
     print("EXPECTED_E: {}".format(EXPECTED_E))
     print("ADD_NEW_EDGES (y): {}".format(ADD_NEW_EDGES))
     print("START (x): {}".format(START))
+    print('')
 
     ############################################################################
     # 2. Initializing graph
@@ -103,6 +104,7 @@ def directed_barabasi_albert_graph(N, kmin, density, minority_fraction, gamma_m,
     G.graph['gamma_M'] = gamma_M
     G.graph['gamma_m'] = gamma_m
     G.graph['seed'] = seed
+    G.graph['label'] = LABEL
 
     ############################################################################
     # 3. Adding nodes with their respective membership class

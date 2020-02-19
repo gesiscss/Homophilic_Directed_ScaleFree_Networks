@@ -45,8 +45,8 @@ class DirectedGraph(object):
     '''
     Cosntructor
     '''
-    def __init__(self, kind, N, kmin, density, minority_fraction, gamma_m, gamma_M, h_mm, h_MM, triads_ratio, triads_pdf):
-        self.kind = kind
+    def __init__(self, model, N, kmin, density, minority_fraction, gamma_m, gamma_M, h_mm, h_MM, triads_ratio, triads_pdf):
+        self.model = model
         self.G = None
         self.N = N
         self.kmin = kmin
@@ -59,6 +59,7 @@ class DirectedGraph(object):
         self.triads_ratio = triads_ratio
         self.triads_pdf = triads_pdf
         self.duration = 0
+        self.fn = None
 
     '''
     Handler to create a new network given its kind
@@ -67,7 +68,7 @@ class DirectedGraph(object):
 
         self.duration = time.time()
 
-        if self.kind == kDBA:
+        if self.model == kDBA:
             self.G,_ = DBA.directed_barabasi_albert_graph(N=self.N,
                                                           kmin=self.kmin,
                                                           density=self.density,
@@ -75,7 +76,7 @@ class DirectedGraph(object):
                                                           gamma_m=self.gamma_m,
                                                           gamma_M=self.gamma_M,
                                                           seed=seed)
-        elif self.kind == kDH:
+        elif self.model == kDH:
             self.G ,_ = DH.directed_homophilic_graph(N=self.N,
                                                     kmin=self.kmin,
                                                     density=self.density,
@@ -85,7 +86,7 @@ class DirectedGraph(object):
                                                     gamma_m=self.gamma_m,
                                                     gamma_M=self.gamma_M,
                                                     seed=seed)
-        elif self.kind == kDT:
+        elif self.model == kDT:
             self.G,_ = DT.directed_triadic_graph(N=self.N,
                                                  kmin=self.kmin,
                                                  density=self.density,
@@ -94,7 +95,7 @@ class DirectedGraph(object):
                                                  gamma_M=self.gamma_M,
                                                  triads_pdf=self.triads_pdf,
                                                  seed=seed)
-        elif self.kind == kDHBA:
+        elif self.model == kDHBA:
             self.G,_ = DHBA.directed_homophilic_barabasi_albert_graph(N=self.N,
                                                                       kmin=self.kmin,
                                                                       density=self.density,
@@ -104,7 +105,7 @@ class DirectedGraph(object):
                                                                       gamma_m=self.gamma_m,
                                                                       gamma_M=self.gamma_M,
                                                                       seed=seed)
-        elif self.kind == kDHTBA:
+        elif self.model == kDHTBA:
             self.G,_ = DHTBA.directed_homophilic_triadic_barabasi_albert_graph(N=self.N,
                                                                                kmin=self.kmin,
                                                                                density=self.density,
@@ -126,12 +127,14 @@ class DirectedGraph(object):
         print()
         print('created in {} seconds.'.format(self.duration))
 
-    def save(self, output, epoch=None):
-        fn = self.get_filename(epoch)
-        save_gpickle(self.G,os.path.join(output,fn))
+    def save(self, output, prefix=None, epoch=None):
+        self.fn = self.get_filename(prefix, epoch)
+        self.fn = os.path.join(output,self.fn)
+        save_gpickle(self.G,self.fn)
 
-    def get_filename(self, epoch=None):
-        return '{}-N{}-kmin{}-fm{}-hMM{}-hmm{}{}.gpickle'.format(self.kind,
+    def get_filename(self, prefix=None, epoch=None):
+        return '{}{}-N{}-kmin{}-fm{}-hMM{}-hmm{}{}.gpickle'.format('{}-'.format(prefix) if prefix is not None else '',
+                                                                 self.model,
                                                                  self.N,
                                                                  self.kmin,
                                                                  round(self.minority_fraction,1),
@@ -141,27 +144,27 @@ class DirectedGraph(object):
 
 
     '''
-    Validates that the given kind of network has the necessary parameters. 
+    Validates that the given model of network has the necessary parameters. 
     '''
     @staticmethod
     def validate_params(params):
 
-        if params.kind == kDBA:
+        if params.model == kDBA:
             r = ['N','m','density','minority_fraction','gamma_m','gamma_M']
-        elif params.kind == kDH:
+        elif params.model == kDH:
             r = ['N', 'm', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
-        elif params.kind == kDT:
+        elif params.model == kDT:
             r = ['N', 'm', 'density', 'minority_fraction', 'gamma_m', 'gamma_M', 'triads_pdf']
-        elif params.kind == kDHBA:
+        elif params.model == kDHBA:
             r = ['N', 'm', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
-        elif params.kind == kDHTBA:
+        elif params.model == kDHTBA:
             r = ['N', 'm', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M', 'triads_ratio', 'triads_pdf']
 
         g = 0
         w = 0
         for p in params.__dict__:
 
-            if p in ['kind','seed','output']:
+            if p in ['model','seed','output']:
                 continue
 
             if p not in r and getattr(params,p) is not None:
