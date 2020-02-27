@@ -1,7 +1,8 @@
+##################################################################################################
+# System's Dependencies
+##################################################################################################
 import os
 os.environ["OPENBLAS_NUM_THREADS"] = "1"
-
-import time
 import powerlaw
 import numpy as np
 import pandas as pd
@@ -11,10 +12,24 @@ from joblib import delayed
 from collections import Counter
 from fast_pagerank import pagerank_power
 
+##################################################################################################
+# Local Dependencies
+##################################################################################################
+
 from org.gesis.libs import utils
 from org.gesis.libs import triads
 from org.gesis.libs.utils import printf
+from org.gesis.libs.io import save_csv
+from org.gesis.libs.io import read_csv
 
+##################################################################################################
+# Functions
+##################################################################################################
+
+
+###############################################################
+# Distributions
+###############################################################
 def power_law_distribution(k_min, gamma, n):
     theoretical_distribution = powerlaw.Power_Law(xmin=k_min, parameters=[gamma])
     return theoretical_distribution.generate_random(n)
@@ -23,6 +38,9 @@ def random_draw(target_list, activity_distribution):
     prob = activity_distribution[target_list] / activity_distribution[target_list].sum()
     return np.random.choice(a=target_list, size=len(target_list), replace=False, p=prob)
 
+###############################################################
+# Network properties
+###############################################################
 def get_network_summary(G):
     from org.gesis.model.DHBA import estimate_homophily_empirical
 
@@ -107,17 +125,11 @@ def frequency_by_who_to_follow(A, cot_per_node=None, p=0.85, top=10, num_cores=4
 
 def get_nodes_metadata(graph, num_cores=10):
     nodes = list(graph.nodes())
-    #print('nodes')
     A = nx.adjacency_matrix(graph, nodes).astype(np.int8) #csr
-    #print('adj')
     ind = A.sum(axis=0).flatten().tolist()[0]
-    #print('ind')
     outd = A.sum(axis=1).flatten().tolist()[0]
-    #print('outd')
     pr = pagerank_power(A, p=0.85).tolist()
-    #print('pr')
     minoriy = [graph.node[n][graph.graph['label']] for n in nodes]
-    #print('minority')
 
     if graph.number_of_nodes() < 6000:
         printf('cot_per_node...')
@@ -143,3 +155,115 @@ def get_nodes_metadata(graph, num_cores=10):
                        }, columns=['node','minority','indegree','outdegree','pagerank','circle_of_trust','wtf'])
 
     return df
+
+def get_nodes_metadata_big(graph, fn=None, num_cores=10):
+    nodes = list(graph.nodes())
+    printf('nodes')
+
+    A = nx.adjacency_matrix(graph, nodes).astype(np.int8) #csr
+    printf('adj')
+
+    ind = A.sum(axis=0).flatten().tolist()[0]
+    printf('ind')
+
+    outd = A.sum(axis=1).flatten().tolist()[0]
+    printf('outd')
+
+    pr = pagerank_power(A, p=0.85).tolist()
+    printf('pr')
+
+    minoriy = [graph.node[n][graph.graph['label']] for n in nodes]
+    printf('minority')
+
+    printf('cot_per_node...')
+    cot_per_node = get_circle_of_trust_per_node(A, p=0.85, top=10, num_cores=num_cores)
+
+    printf('cot...')
+    cot = frequency_by_circle_of_trust(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
+
+    printf('wtf...')
+    wtf = frequency_by_who_to_follow(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
+
+    df = pd.DataFrame({'node':nodes,
+                       'minority':minoriy,
+                       'indegree': ind,
+                       'outdegree': outd,
+                       'pagerank': pr,
+                       'circle_of_trust': cot,
+                       'wtf': wtf,
+                       }, columns=['node','minority','indegree','outdegree','pagerank','circle_of_trust','wtf'])
+
+    if fn is not None:
+        save_csv(df, fn)
+
+def load_all_node_metadata_empirical(datasets, root):
+    df_metadata = None
+
+    for dataset in datasets:
+        printf('=== {} ==='.format(dataset))
+
+        ### loading dataset metadata
+        fn = os.path.join(root, dataset, 'nodes_metadata.csv')
+        if os.path.exists(fn):
+            df = read_csv(fn)
+            printf('loaded!')
+        else:
+            fn = os.path.join(root, dataset, 'nodes_metadata_incomplete.csv')
+            if os.path.exists(fn):
+                df = read_csv(fn)
+                printf('loaded!')
+
+        ### df_metadata from all datasets (append)
+        if df_metadata is None:
+            df_metadata = df.copy()
+        else:
+            df_metadata = df_metadata.append(df, ignore_index=True)
+
+        del (df)
+
+    return df_metadata
+
+def load_all_node_metadata_fit(datasets, models, output):
+    df_metadata = None
+
+    for dataset in datasets:
+        for model in models:
+            path = os.path.join(output, dataset, model)
+            files = [fn for fn in os.listdir(path) if fn.endswith('.csv')]
+            for fn in files:
+                id = int(fn.split('-ID')[-1].replace(".csv",''))
+                fn = os.path.join(path, fn)
+                df = read_csv(fn)
+                df.loc[:, 'dataset'] = dataset
+                df.loc[:, 'model'] = model
+                df.loc[:, 'epoch'] = id
+
+                ### df_metadata from all datasets (append)
+                if df_metadata is None:
+                    df_metadata = df.copy()
+                else:
+                    df_metadata = df_metadata.append(df, ignore_index=True)
+
+                del (df)
+
+    return df_metadata
+
+
+    return
+
+# def mean_lorenz_curves_and_gini_fit(df, metrics):
+#     from org.gesis.libs.utils import gini
+#     from org.gesis.libs.utils import lorenz_curve
+#
+#     df_lorenz_curve = pd.DataFrame(columns=['x','y','model','dataset'])
+#     df_gini_coef = None
+#
+#     for name,group in df.groupby(['dataset','model','epoch']):
+#
+#         for metric in metrics:
+#             X = np.sort(group[metric].astype(np.float).values)
+#             gc = gini(X)
+#
+#             y = lorenz_curve(X)
+#             x = np.arange(y.size) / (y.size - 1)
+    # return None, None

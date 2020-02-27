@@ -3,7 +3,9 @@ import pandas as pd
 import os
 from collections import defaultdict
 import warnings
-
+from scipy import stats
+import networkx as nx
+import operator
 
 PERCENTAGE_RANGE = np.append([5], np.arange(10, 100 + 10, 10)).astype(np.float)
 VALID_METRICS = ['pagerank', 'circle_of_trust', 'wtf']
@@ -29,6 +31,66 @@ def _rank(rank_dict):
 
         y_list.append(float(count_min) / (count_min + count_maj))
     return x_list, y_list
+
+
+def _rank_function_graph(G, metric, minority=None):
+    if metric == 'degree':
+        rank = dict(G.degree())
+    elif metric == 'indegree':
+        rank = dict(G.in_degree())
+    elif metric == 'outdegree':
+        rank = dict(G.out_degree())
+    elif metric == 'pagerank':
+        rank = nx.pagerank(G)
+    else:
+        raise ValueError('metric does not exist: {}'.format(metric))
+
+    sorted_rnk = sorted(rank.items(), key=operator.itemgetter(1), reverse=True)
+    del (rank)
+
+    rank_val = 0
+    rank_index_dict = {}
+    rank_dict = defaultdict(list)
+    count_all_min = 0;
+    count_all_maj = 0
+
+    for node_index, _val in sorted_rnk:
+
+        if _val in rank_index_dict.keys():
+            rank_val = rank_index_dict[_val]
+        else:
+            rank_val += 1
+            rank_index_dict[_val] = rank_val
+
+        try:
+            node_color = G.node[node_index]['color']
+        except:
+            try:
+                node_color = G.node[node_index][G.graph['class']]
+            except Exception as e:
+                print(ValueError("error: {}".format(e)))
+                return (None, None), None
+
+        node_color = str(node_color)
+
+        if minority is None:
+            if node_color in ['min', 'red', 'minority', '1', True, 'True']:
+                count_all_min += 1
+                rank_dict[rank_val].append('min')
+            else:
+                count_all_maj += 1
+                rank_dict[rank_val].append('maj')
+        else:
+            if node_color == str(minority):
+                count_all_min += 1
+                rank_dict[rank_val].append('min')
+            else:
+                count_all_maj += 1
+                rank_dict[rank_val].append('maj')
+
+    minority_fraction = float(count_all_min) / float(count_all_min + count_all_maj)
+    return _rank(rank_dict), minority_fraction
+
 
 
 def _rank_function_matrix(df, metric):
@@ -68,11 +130,11 @@ def _validate_metric(metric):
     if metric not in VALID_METRICS:
         raise ValueError('metric {} is not supported. Please choose from: {}'.format(metric, VALID_METRICS))
 
-def rank_synthetic(datasets, output):
+def rank_fit(datasets, output):
     from org.gesis.libs.io import read_csv
     from org.gesis.libs.utils import printf
 
-    fntr = 'rank_synthetic.csv'
+    fntr = 'rank_fit.csv'
     fntr = os.path.join(output, fntr)
 
     if os.path.exists(fntr):
@@ -179,3 +241,47 @@ def rank_empirical(root, datasets, output):
 
     df_rank.to_csv(fntr)
     return df_rank
+
+
+def KS_divergence(df_rank):
+    '''
+    Computes the Kolmogorov-Smirnov statistic on 2 samples.
+    This is a two-sided test for the null hypothesis that 2 independent samples are drawn from the same continuous distribution.
+    If the K-S statistic is small or the p-value is high, then we cannot reject the hypothesis that the distributions of the two samples are the same.
+    In other words:
+    If the K-S statistic is large or the p-value is small, then we reject the hypothesis that the distributions of the two samples are the same (thus, they are not the same).
+
+    :param df_rank:
+    :return:
+    '''
+    cols = ['dataset','metric','model','ks','pvalue']
+    df = pd.DataFrame(columns=cols)
+
+    for dataset in df_rank.dataset.unique():
+        for metric in df_rank.metric.unique():
+
+            if dataset.lower() in ['pokec','github'] and metric != 'pagerank':
+                continue
+
+            r1 = df_rank.query("dataset == @dataset & metric==@metric & kind=='empirical'").sort_values('rank').fmt
+
+            for model in df_rank.kind.unique():
+
+                if model == 'empirical':
+                    continue
+
+                r2 = df_rank.query("dataset == @dataset & metric==@metric & kind==@model")
+                r2 = r2.groupby(['kind','metric','dataset','rank']).mean().reset_index().sort_values('rank').fmt
+
+                try:
+                    ks,pv = stats.ks_2samp(r1, r2)
+                    df = df.append(pd.DataFrame({'dataset':dataset,
+                                                 'metric':metric,
+                                                 'model':model,
+                                                 'ks':ks,
+                                                 'pvalue':pv},
+                                                index=[0],
+                                                columns=cols), ignore_index=True)
+                except Exception as ex:
+                    pass
+    return df

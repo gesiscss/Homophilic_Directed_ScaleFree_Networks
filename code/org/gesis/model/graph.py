@@ -127,10 +127,17 @@ class DirectedGraph(object):
         print()
         print('created in {} seconds.'.format(self.duration))
 
+    def already_exists(self, output, prefix=None, epoch=None):
+        self.fn = self._get_fn(output, prefix=prefix, epoch=epoch)
+        return os.path.exists(self.fn)
+
     def save(self, output, prefix=None, epoch=None):
-        self.fn = self.get_filename(prefix, epoch)
-        self.fn = os.path.join(output,self.fn)
+        self.fn = self._get_fn(output, prefix=prefix, epoch=epoch)
         save_gpickle(self.G,self.fn)
+
+    def _get_fn(self, output, prefix=None, epoch=None):
+        fn = self.get_filename(prefix=prefix, epoch=epoch)
+        return os.path.join(output,fn)
 
     def get_filename(self, prefix=None, epoch=None):
         return '{}{}-N{}-kmin{}-fm{}-hMM{}-hmm{}{}.gpickle'.format('{}-'.format(prefix) if prefix is not None else '',
@@ -150,21 +157,21 @@ class DirectedGraph(object):
     def validate_params(params):
 
         if params.model == kDBA:
-            r = ['N','m','density','minority_fraction','gamma_m','gamma_M']
+            r = ['N','kmin','density','minority_fraction','gamma_m','gamma_M']
         elif params.model == kDH:
-            r = ['N', 'm', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
+            r = ['N', 'kmin', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
         elif params.model == kDT:
-            r = ['N', 'm', 'density', 'minority_fraction', 'gamma_m', 'gamma_M', 'triads_pdf']
+            r = ['N', 'kmin', 'density', 'minority_fraction', 'gamma_m', 'gamma_M', 'triads_pdf']
         elif params.model == kDHBA:
-            r = ['N', 'm', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
+            r = ['N', 'kmin', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
         elif params.model == kDHTBA:
-            r = ['N', 'm', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M', 'triads_ratio', 'triads_pdf']
+            r = ['N', 'kmin', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M', 'triads_ratio', 'triads_pdf']
 
         g = 0
         w = 0
         for p in params.__dict__:
 
-            if p in ['model','seed','output']:
+            if p in ['model','seed','output','epoch','metadata']:
                 continue
 
             if p not in r and getattr(params,p) is not None:

@@ -49,7 +49,33 @@ def get_indegree_powerlaw_exponents(graph):
 
     return fitM.power_law.alpha, fitM.power_law.xmin, fitm.power_law.alpha, fitm.power_law.xmin
 
+def lorenz_curve(X):
+    X_lorenz = X.cumsum() / X.sum()
+    X_lorenz = np.insert(X_lorenz, 0, 0)
+    return X_lorenz
 
+def gini(X):
+    """Calculate the Gini coefficient of a numpy array."""
+    # https://github.com/oliviaguest/gini/blob/master/gini.py
+    # based on bottom eq:
+    # http://www.statsdirect.com/help/generatedimages/equations/equation154.svg
+    # from:
+    # http://www.statsdirect.com/help/default.htm#nonparametric_methods/gini.htm
+    # All values are treated equally, arrays must be 1d:
+    X = X.flatten()
+    if np.amin(X) < 0:
+        # Values cannot be negative:
+        X -= np.amin(X)
+    # Values cannot be 0:
+    X += 0.0000001
+    # Values must be sorted:
+    X = np.sort(X)
+    # Index per array element:
+    index = np.arange(1, X.shape[0] + 1)
+    # Number of array elements:
+    n = X.shape[0]
+    # Gini coefficient:
+    return ((np.sum((2 * index - n - 1) * X)) / (n * np.sum(X)))
 
 
 

@@ -19,8 +19,8 @@ def init_batch_generate_network():
                         help='Number of nodes.',
                         )
 
-    parser.add_argument('-m', action='store',
-                        dest='m',
+    parser.add_argument('-kmin', action='store',
+                        dest='kmin',
                         required=True,
                         type=int,
                         default=2,
@@ -85,6 +85,10 @@ def init_batch_generate_network():
                         help='A specific iteration (epoch out of iter).',
                         )
 
+    parser.add_argument('-metadata', action='store_true',
+                        dest='metadata',
+                        help='Whether or not compute metadata of nodes (in/out degree, pagerank, COT, WTF).')
+
     parser.add_argument('-output', action='store',
                         dest='output',
                         default=None,
@@ -94,12 +98,15 @@ def init_batch_generate_network():
 
     results = parser.parse_args()
 
+    if results.h_MM is None and results.h_mm is not None:
+        results.h_MM = results.h_mm
+
     print("===================================================")
     print("= ARGUMENTS PASSED:                               =")
     print("===================================================")
     print('model .................. = ', results.model)
     print('N ...................... = ', results.N)
-    print('m ...................... = ', results.m)
+    print('kmin ................... = ', results.kmin)
     print('density ................ = ', results.density)
     print('minority_fraction ...... = ', results.minority_fraction)
     print('h_mm ................... = ', results.h_mm)
@@ -109,6 +116,7 @@ def init_batch_generate_network():
     print('triads_ratio ........... = ', results.triads_ratio)
     print('triads_pdf ............. = ', results.triads_pdf)
     print('epoch .................. = ', results.epoch)
+    print('metadata ............... = ', results.metadata)
     print('output ................. = ', results.output)
     print("===================================================")
     printf("init_batch_generate_network")
@@ -185,4 +193,32 @@ def init_batch_model_fit():
     print('output ................. = ', results.output)
     print("===================================================")
     printf("init_batch_model_fit")
+    return results
+
+def init_batch_node_attributes():
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('-dataset', action='store',
+                        dest='dataset',
+                        required=True,
+                        choices=["aps", "github", "pokec", "wikipedia"],
+                        help='Dataset')
+
+    parser.add_argument('-root', action='store',
+                        dest='root',
+                        required=True,
+                        default='results',
+                        help='Directory where the datasets are.')
+
+    parser.add_argument('--version', action='version', version='%(prog)s 1.0')
+
+    results = parser.parse_args()
+
+    print("===================================================")
+    print("= ARGUMENTS PASSED:                               =")
+    print("===================================================")
+    print('dataset ................ = ', results.dataset)
+    print('root ................... = ', results.root)
+    print("===================================================")
+    printf("init_batch_generate_network")
     return results
