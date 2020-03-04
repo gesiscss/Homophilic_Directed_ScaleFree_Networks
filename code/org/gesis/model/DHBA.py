@@ -276,8 +276,13 @@ def estimate_homophily_empirical(graph, fm=None, EMM=None, EMm=None, EmM=None, E
             pmm_analytical = float(fm * h_mm_analytical * Z) / ((fm * h_mm_analytical * Z) + ((1 - fm) * (1 - h_mm_analytical) * K))
             pMM_analytical = float(fM * h_MM_analytical * K) / ((fM * h_MM_analytical * K) + (fm * (1 - h_MM_analytical) * Z))
 
-            pmm_emp = float(min_min) / (min_min + min_maj)
-            pMM_emp = float(maj_maj) / (maj_maj + maj_min)
+            if min_min + min_maj + maj_maj == 0:
+                # bipartite
+                pmm_emp = 0.000001
+                pMM_emp = 0.000001
+            else:
+                pmm_emp = float(min_min) / (min_min + min_maj)
+                pMM_emp = float(maj_maj) / (maj_maj + maj_min)
 
             _diff = abs(pmm_emp - pmm_analytical) + abs(pMM_emp - pMM_analytical)
             diff.append(_diff)

@@ -50,7 +50,8 @@ def get_indegree_powerlaw_exponents(graph):
     return fitM.power_law.alpha, fitM.power_law.xmin, fitm.power_law.alpha, fitm.power_law.xmin
 
 def lorenz_curve(X):
-    X_lorenz = X.cumsum() / X.sum()
+    X_lorenz = np.sort(X)
+    X_lorenz = X_lorenz.cumsum() / X.sum()
     X_lorenz = np.insert(X_lorenz, 0, 0)
     return X_lorenz
 

@@ -54,7 +54,10 @@ def get_network_summary(G):
     triads_count = triads.get_triads_from_edges(G,utils.CLASSNAME)
     triads_total = sum(triads_count.values())
     triads_ratio = triads_total / triads.get_total_possible_triads(m_counts, M_counts)
-    triads_pdf = [triads_count[key]/triads_total for key in triads.get_triads_ids()]
+    if triads_total != 0:
+        triads_pdf = [triads_count[key]/triads_total for key in triads.get_triads_ids()]
+    else:
+        triads_pdf = [1 / len(triads.get_triads_ids()) for key in triads.get_triads_ids()]
 
     gamma_M_out, xmin_M_out, gamma_m_out, xmin_m_out = utils.get_outdegree_powerlaw_exponents(G)
     gamma_M_in, xmin_M_in, gamma_m_in, xmin_m_in = utils.get_indegree_powerlaw_exponents(G)
@@ -197,6 +200,10 @@ def get_nodes_metadata_big(graph, fn=None, num_cores=10):
         save_csv(df, fn)
 
 def load_all_node_metadata_empirical(datasets, root):
+    fna = os.path.join(root, 'all_datasets_empirical_metadata.csv')
+    if os.path.exists(fna):
+        return read_csv(fna)
+
     df_metadata = None
 
     for dataset in datasets:
@@ -221,9 +228,14 @@ def load_all_node_metadata_empirical(datasets, root):
 
         del (df)
 
+    save_csv(df_metadata, fna)
     return df_metadata
 
 def load_all_node_metadata_fit(datasets, models, output):
+    fna = os.path.join(output, 'all_datasets_synthetic_metadata.csv')
+    if os.path.exists(fna):
+        return read_csv(fna)
+
     df_metadata = None
 
     for dataset in datasets:
@@ -246,10 +258,48 @@ def load_all_node_metadata_fit(datasets, models, output):
 
                 del (df)
 
+    save_csv(df_metadata, fna)
     return df_metadata
 
+def load_all_node_metadata_synthetic(model, output):
+    fna = os.path.join(output, 'synthetic', '{}_all_metadata.csv'.format(model))
+    if os.path.exists(fna):
+        return read_csv(fna)
 
-    return
+    path = os.path.join(output, 'synthetic', model)
+    files = [os.path.join(path,fn) for fn in os.listdir(path) if fn.endswith('.csv')]
+
+    df_metadata = None
+    for fn in files:
+        # DHBA-N2000-kmin2-fm0.5-hMM1.0-hmm1.0-ID1.csv
+        # ,node,minority,indegree,outdegree,pagerank,circle_of_trust,wtf
+        N = int(fn.split('/')[-1].split('-N')[-1].split('-kmin')[0])
+        kmin = int(fn.split('/')[-1].split('-kmin')[-1].split('-fm')[0])
+        fm = float(fn.split('/')[-1].split('-fm')[-1].split('-hMM')[0])
+        hMM = float(fn.split('/')[-1].split('-hMM')[-1].split('-hmm')[0])
+        hmm = float(fn.split('/')[-1].split('-hmm')[-1].split('-ID')[0]) #-gM
+        # gM =
+        # gm =
+        epoch = int(fn.split('/')[-1].split('-ID')[-1].split('.csv')[0])
+
+        df = read_csv(fn)
+        df.loc[:, 'N'] = N
+        df.loc[:, 'kmin'] = kmin
+        df.loc[:, 'fm'] = fm
+        df.loc[:, 'hMM'] = hMM
+        df.loc[:, 'hmm'] = hmm
+        df.loc[:, 'gm'] = 2.5
+        df.loc[:, 'gM'] = 2.5
+        df.loc[:,'epoch'] = epoch
+
+        if df_metadata is None:
+            df_metadata = df.copy()
+        else:
+            df_metadata = df_metadata.append(df, ignore_index=True)
+
+    save_csv(df_metadata, fna)
+    return df_metadata
+
 
 # def mean_lorenz_curves_and_gini_fit(df, metrics):
 #     from org.gesis.libs.utils import gini

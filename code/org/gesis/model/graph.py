@@ -14,6 +14,7 @@ from org.gesis.model import DT
 from org.gesis.model import DHBA
 from org.gesis.model import DHTBA
 from org.gesis.libs.io import save_gpickle
+from org.gesis.libs import utils
 
 ####################################################################
 # Constants
@@ -117,8 +118,22 @@ class DirectedGraph(object):
                                                                                triads_ratio=self.triads_ratio,
                                                                                seed=seed)
         self.duration = time.time() - self.duration
+        self.update_properties()
 
         return self.G
+
+    def update_properties(self):
+
+        if self.h_mm is None or self.h_MM is None:
+            if self.model == kDBA:
+                self.h_MM = 0.5
+                self.h_mm = 0.5
+            elif self.model == kDH:
+                EMM, EMm, EmM, Emm = utils.get_edge_type_counts(G)
+                self.h_MM = EMM / (EMM + EMm)
+                self.h_MM = Emm / (Emm + EmM)
+            else:
+                raise Exception('not implemented.')
 
     def info(self):
         print()
@@ -128,8 +143,12 @@ class DirectedGraph(object):
         print('created in {} seconds.'.format(self.duration))
 
     def already_exists(self, output, prefix=None, epoch=None):
-        self.fn = self._get_fn(output, prefix=prefix, epoch=epoch)
-        return os.path.exists(self.fn)
+        try:
+            self.fn = self._get_fn(output, prefix=prefix, epoch=epoch)
+            return os.path.exists(self.fn)
+        except:
+            return False
+
 
     def save(self, output, prefix=None, epoch=None):
         self.fn = self._get_fn(output, prefix=prefix, epoch=epoch)
