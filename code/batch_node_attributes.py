@@ -18,7 +18,7 @@ def run(params):
         G = nx.read_gpickle(fng)
         printf('computing...')
 
-        df = get_nodes_metadata_big(G, fn, num_cores=1)
+        df = get_nodes_metadata_big(G, fn, num_cores=params.numcores)
         df.loc[:, 'dataset'] = params.dataset
         del (G)
 
