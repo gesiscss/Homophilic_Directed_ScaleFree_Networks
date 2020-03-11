@@ -1,4 +1,5 @@
 import os
+import pickle
 import pandas as pd
 import networkx as nx
 from org.gesis.libs.utils import printf
@@ -31,3 +32,21 @@ def read_csv(fn):
     except Exception as ex:
         printf(ex)
     return df
+
+def save_pickle(obj, fn):
+    try:
+        create_subfolders(fn)
+        with open(fn,'wb') as f:
+            pickle.dump(obj, f)
+        printf('{} saved!'.format(fn))
+    except Exception as ex:
+        printf(ex)
+
+def read_pickle(fn):
+    obj = None
+    try:
+        with open(fn,'rb') as f:
+            obj = pickle.load(f)
+    except Exception as ex:
+        printf(ex)
+    return obj

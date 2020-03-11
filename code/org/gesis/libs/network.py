@@ -21,6 +21,8 @@ from org.gesis.libs import triads
 from org.gesis.libs.utils import printf
 from org.gesis.libs.io import save_csv
 from org.gesis.libs.io import read_csv
+from org.gesis.libs.io import read_pickle
+from org.gesis.libs.io import save_pickle
 
 ##################################################################################################
 # Functions
@@ -39,8 +41,43 @@ def random_draw(target_list, activity_distribution):
     return np.random.choice(a=target_list, size=len(target_list), replace=False, p=prob)
 
 ###############################################################
-# Network properties
+# Network Summary
 ###############################################################
+
+def get_all_datasets_summary(datasets, root, output, verbose=True):
+
+    fn = os.path.join(output, 'summary_datasets.csv')
+    if os.path.exists(fn):
+        return read_csv(fn)
+
+    df_summary = None
+    for dataset in datasets:
+        if verbose:  printf('{}...'.format(dataset))
+        fng = os.path.join(root, dataset, '{}_attributed_network_anon.gpickle'.format(dataset))
+        G = nx.read_gpickle(fng)
+        row = get_network_summary(G)
+        del (G)
+
+        if df_summary is None:
+            df_summary = row.copy()
+        else:
+            df_summary = df_summary.append(row, ignore_index=True)
+
+    save_csv(df_summary, fn)
+    return df_summary
+
+def all_datasets_summary_as_latex(df_summary, output=None):
+    df_latex_summary = df_summary.pivot_table(columns='dataset', aggfunc=lambda x: ' '.join(str(v) for v in x))
+    columns = ['N', 'cc', 'class', 'M', 'm', 'fm', 'E', 'EMM', 'EMm', 'EmM', 'Emm', 'density']
+    df_latex_summary = df_latex_summary.reindex(columns)
+
+    if output is not None:
+        fn = os.path.join(output, 'summary_datasets.tex')
+        df_latex_summary.to_latex(fn, float_format=lambda x: '%.5f' % x)
+        print('{} saved!'.format(fn))
+        
+    return df_latex_summary
+
 def get_network_summary(G):
     from org.gesis.model.DHBA import estimate_homophily_empirical
 
@@ -88,6 +125,10 @@ def get_network_summary(G):
                         index=[1],
                         columns=columns)
 
+###############################################################
+# Nodes metadata
+###############################################################
+
 def _ppr(node_index, A, p, top):
     pp = np.zeros(A.shape[0])
     pp[node_index] = A.shape[0]
@@ -134,7 +175,7 @@ def get_nodes_metadata(graph, num_cores=10):
     pr = pagerank_power(A, p=0.85).tolist()
     minoriy = [graph.node[n][graph.graph['label']] for n in nodes]
 
-    if graph.number_of_nodes() < 6000:
+    if graph.number_of_nodes() < 11000:
         printf('cot_per_node...')
         cot_per_node = get_circle_of_trust_per_node(A, p=0.85, top=10, num_cores=num_cores)
 
@@ -160,12 +201,65 @@ def get_nodes_metadata(graph, num_cores=10):
     return df
 
 def get_nodes_metadata_big(graph, fn=None, num_cores=10):
-    nodes = list(graph.nodes())
+
+    ### 1.
     printf('nodes')
 
+    fncpn = fn.replace(".csv", "_nodes.pickle")
+    if os.path.exists(fncpn):
+        print('loading...')
+        nodes = read_pickle(fncpn)
+    else:
+        Nold = graph.number_of_nodes()
+        N = 500000
+        nodes = list(graph.nodes())
+        # @todo: do some kind of stratified sampling
+        if N < Nold:
+            print('randomizing: {} out of {} ({}%)...'.format(N, Nold, round(N/Nold,2)))
+            nodes = np.random.choice(nodes, size=N, replace=False).tolist()
+            save_pickle(nodes, fncpn)
+
+    ### 2.
     A = nx.adjacency_matrix(graph, nodes).astype(np.int8) #csr
     printf('adj')
 
+    ## 3.
+    printf('cot_per_node')
+
+    fncpn = fn.replace(".csv","_cpn.pickle")
+    if os.path.exists(fncpn):
+        print('loading...')
+        cot_per_node = read_pickle(fncpn)
+    else:
+        print('computing...')
+        cot_per_node = get_circle_of_trust_per_node(A, p=0.85, top=10, num_cores=num_cores)
+        save_pickle(cot_per_node, fncpn)
+
+    ## 2.
+    printf('cot...')
+
+    fncpn = fn.replace(".csv", "_cot.pickle")
+    if os.path.exists(fncpn):
+        print('loading...')
+        cot = read_pickle(fncpn)
+    else:
+        print('computing...')
+        cot = frequency_by_circle_of_trust(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
+        save_pickle(cot, fncpn)
+
+    ## 3.
+    printf('wtf...')
+
+    fncpn = fn.replace(".csv", "_wtf.pickle")
+    if os.path.exists(fncpn):
+        print('loading...')
+        cot = read_pickle(fncpn)
+    else:
+        print('computing...')
+        wtf = frequency_by_who_to_follow(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
+        save_pickle(wtf, fncpn)
+
+    ### 4.
     ind = A.sum(axis=0).flatten().tolist()[0]
     printf('ind')
 
@@ -177,15 +271,6 @@ def get_nodes_metadata_big(graph, fn=None, num_cores=10):
 
     minoriy = [graph.node[n][graph.graph['label']] for n in nodes]
     printf('minority')
-
-    printf('cot_per_node...')
-    cot_per_node = get_circle_of_trust_per_node(A, p=0.85, top=10, num_cores=num_cores)
-
-    printf('cot...')
-    cot = frequency_by_circle_of_trust(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
-
-    printf('wtf...')
-    wtf = frequency_by_who_to_follow(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
 
     df = pd.DataFrame({'node':nodes,
                        'minority':minoriy,
@@ -199,7 +284,9 @@ def get_nodes_metadata_big(graph, fn=None, num_cores=10):
     if fn is not None:
         save_csv(df, fn)
 
-def load_all_node_metadata_empirical(datasets, root):
+    return df
+
+def load_all_datasets_node_metadata_empirical(datasets, root):
     fna = os.path.join(root, 'all_datasets_empirical_metadata.csv')
     if os.path.exists(fna):
         return read_csv(fna)
@@ -208,6 +295,7 @@ def load_all_node_metadata_empirical(datasets, root):
 
     for dataset in datasets:
         printf('=== {} ==='.format(dataset))
+        df = None
 
         ### loading dataset metadata
         fn = os.path.join(root, dataset, 'nodes_metadata.csv')
@@ -219,17 +307,42 @@ def load_all_node_metadata_empirical(datasets, root):
             if os.path.exists(fn):
                 df = read_csv(fn)
                 printf('loaded!')
+            else:
+                printf("You should compute nodes_metadata.csv for {} using batch_node_attributes.py !!!".format(dataset))
 
         ### df_metadata from all datasets (append)
-        if df_metadata is None:
-            df_metadata = df.copy()
-        else:
-            df_metadata = df_metadata.append(df, ignore_index=True)
-
-        del (df)
+        if df is not None:
+            if df_metadata is None:
+                df_metadata = df.copy()
+            else:
+                df_metadata = df_metadata.append(df, ignore_index=True)
+            del (df)
 
     save_csv(df_metadata, fna)
     return df_metadata
+
+def all_datasets_node_metadata_empirical_degrees(df_metadata):
+    df_metadata_pivot = None
+
+    for dataset in df_metadata.dataset.unique():
+        tmp = df_metadata.query("dataset==@dataset").copy().sort_values('node')
+
+        for metric in ['indegree', 'outdegree']:
+            tmpnew = pd.DataFrame({'dataset': dataset,
+                                   'node': tmp.node,
+                                   'minority': tmp.minority,
+                                   'metric': metric,
+                                   'value': tmp[metric]
+                                   })
+            if df_metadata_pivot is None:
+                df_metadata_pivot = tmpnew.copy()
+            else:
+                df_metadata_pivot = df_metadata_pivot.append(tmpnew, ignore_index=True)
+
+        del (tmpnew)
+        del (tmp)
+
+    return df_metadata_pivot
 
 def load_all_node_metadata_fit(datasets, models, output):
     fna = os.path.join(output, 'all_datasets_synthetic_metadata.csv')

@@ -29,7 +29,7 @@ def get_min_degree(graph):
     return min([d for n, d in graph.degree()])
 
 def fit_power_law(data):
-    return powerlaw.Fit(data, xmin=min(data), xmax=max(data), discrete=not (min(data) > 0 and min(data) < 1))
+    return powerlaw.Fit(data, xmin=min(data), xmax=max(data), discrete=type(data)==np.int, verbose=False)
 
 def get_outdegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.out_degree() if graph.node[n][CLASSNAME] == 0])

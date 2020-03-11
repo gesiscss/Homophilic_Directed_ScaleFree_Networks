@@ -136,7 +136,7 @@ def init_batch_model_fit():
     parser.add_argument('-dataset', action='store',
                         dest='dataset',
                         required=True,
-                        choices=["aps", "github", "pokec", "wikipedia"],
+                        choices=["aps", "apsgender3", "apsgender8", "github", "pokec", "wikipedia"],
                         help='Dataset',
                         )
 
@@ -204,6 +204,11 @@ def init_batch_node_attributes():
                         choices=["aps", "github", "pokec", "wikipedia"],
                         help='Dataset')
 
+    parser.add_argument('-nc', action='store',
+                        dest='numcores',
+                        type=int,
+                        help='Dataset')
+
     parser.add_argument('-root', action='store',
                         dest='root',
                         required=True,
@@ -218,6 +223,7 @@ def init_batch_node_attributes():
     print("= ARGUMENTS PASSED:                               =")
     print("===================================================")
     print('dataset ................ = ', results.dataset)
+    print('numcores ............... = ', results.numcores)
     print('root ................... = ', results.root)
     print("===================================================")
     printf("init_batch_generate_network")

@@ -1,11 +1,18 @@
+import os
+import warnings
+import operator
 import numpy as np
 import pandas as pd
-import os
-from collections import defaultdict
-import warnings
-from scipy import stats
 import networkx as nx
-import operator
+from scipy import stats
+from deprecated import deprecated
+from collections import defaultdict
+from sklearn.metrics import mean_absolute_error
+
+from org.gesis.libs.utils import gini
+from org.gesis.libs.io import save_csv
+from org.gesis.libs.io import read_csv
+from org.gesis.libs.utils import printf
 
 PERCENTAGE_RANGE = np.append([5], np.arange(10, 100 + 10, 10)).astype(np.float)
 VALID_METRICS = ['indegree','outdegree','pagerank', 'circle_of_trust', 'wtf']
@@ -131,9 +138,6 @@ def _validate_metric(metric):
         raise ValueError('metric {} is not supported. Please choose from: {}'.format(metric, VALID_METRICS))
 
 def rank_vh_inequalities_synthetic(model, output):
-    from org.gesis.libs.io import read_csv
-    from scipy.spatial.distance import jensenshannon
-    from org.gesis.libs.utils import gini
 
     fntr = 'rank_synthetic_{}.csv'.format(model)
     fntr = os.path.join(output, fntr)
@@ -141,7 +145,7 @@ def rank_vh_inequalities_synthetic(model, output):
     if os.path.exists(fntr):
         return read_csv(fntr)
 
-    cols = ['kind', 'metric', 'N', 'kmin', 'fm', 'hMM', 'hmm', 'gm', 'gM', 'gini', 'JSd', 'rank', 'fmt']
+    cols = ['kind', 'metric', 'N', 'kmin', 'fm', 'hMM', 'hmm', 'gm', 'gM', 'gini', 'mae', 'epoch', 'rank', 'fmt']
     df_rank = pd.DataFrame(columns=cols)
 
     path = os.path.join(output, 'synthetic', model)
@@ -166,7 +170,7 @@ def rank_vh_inequalities_synthetic(model, output):
                     (rank, fmt), minority_fraction = _rank_function_matrix(metadata, metric)
 
                     g = gini(metadata[metric].astype(np.float).values) # vertical ineq.
-                    JSd = jensenshannon(fmt, [fm]*len(fmt)) # horizontal ineq.
+                    mae = mean_absolute_error(fmt, [fm]*len(fmt)) # horizontal ineq.
 
                     df_rank = df_rank.append(pd.DataFrame({'kind': model,
                                                            'metric': metric,
@@ -178,17 +182,15 @@ def rank_vh_inequalities_synthetic(model, output):
                                                            'gM': gM,
                                                            'gm': gm,
                                                            'gini': g,
-                                                           'JSd':JSd,
+                                                           'mae':mae,
                                                            'epoch': epoch,
                                                            'rank': rank,
                                                            'fmt': fmt}, columns=cols), ignore_index=True)
-    df_rank.to_csv(fntr)
+    save_csv(df_rank, fntr)
     return df_rank
 
 
 def rank_fit(datasets, output):
-    from org.gesis.libs.io import read_csv
-    from org.gesis.libs.utils import printf
 
     fntr = 'rank_fit.csv'
     fntr = os.path.join(output, fntr)
@@ -196,7 +198,7 @@ def rank_fit(datasets, output):
     if os.path.exists(fntr):
         return read_csv(fntr)
 
-    cols = ['kind', 'metric', 'dataset', 'rank', 'fmt']
+    cols = ['kind', 'metric', 'dataset', 'gini', 'mae', 'epoch', 'rank', 'fmt']
     df_rank = pd.DataFrame(columns=cols)
 
     for dataset in datasets:
@@ -218,21 +220,22 @@ def rank_fit(datasets, output):
                             warnings.warn('metric {} does not exist for {}.'.format(metric, dataset),  UserWarning)
                         else:
                             (rank, fmt), minority_fraction = _rank_function_matrix(metadata, metric)
+                            g = gini(metadata[metric].astype(np.float).values)  # vertical ineq.
+                            mae = mean_absolute_error(fmt, [minority_fraction] * len(fmt))  # horizontal ineq.
+
                             df_rank = df_rank.append(pd.DataFrame({'kind': model,
                                                                    'metric': metric,
                                                                    'dataset': dataset,
+                                                                   'gini':g,
+                                                                   'mae':mae,
                                                                    'epoch': epoch,
                                                                    'rank': rank,
                                                                    'fmt': fmt}, columns=cols), ignore_index=True)
-    df_rank.to_csv(fntr)
+    save_csv(df_rank, fntr)
     return df_rank
 
 
 def rank_empirical(root, datasets, output):
-    from org.gesis.libs.utils import printf
-    from org.gesis.libs.io import read_csv
-    from scipy.spatial.distance import jensenshannon
-    from org.gesis.libs.utils import gini
 
     ### check final rank if exists
     fntr = 'rank_empirical.csv'
@@ -242,7 +245,7 @@ def rank_empirical(root, datasets, output):
         return read_csv(fntr)
 
     ### if it does not exist, then create file
-    cols = ['kind', 'metric', 'dataset', 'gini', 'JSd', 'rank', 'fmt']
+    cols = ['kind', 'metric', 'dataset', 'gini', 'mae', 'epoch', 'rank', 'fmt']
     df_rank = pd.DataFrame(columns=cols)
 
     ### for each dataset
@@ -262,13 +265,14 @@ def rank_empirical(root, datasets, output):
             fn = os.path.join(root, dataset.lower(), 'nodes_metadata.csv')
             printf(os.path.exists(fn))
 
+            # @ todo: remove this once pokec has node_metadata complete
             if not os.path.exists(fn):
                 print('no metadata for {}'.format(dataset))
                 fn = fn.replace(".csv","_incomplete.csv")
                 #warnings.warn('{} does not exist.'.format(fn),  UserWarning)
 
             printf('loading...')
-            metadata = pd.read_csv(fn, index_col=0)
+            metadata = read_csv(fn)
             printf('loaded')
 
             ### for each metric
@@ -282,14 +286,15 @@ def rank_empirical(root, datasets, output):
                     (rank, fmt), minority_fraction = _rank_function_matrix(metadata, metric)
 
                     g = gini(metadata[metric].astype(np.float).values)  # vertical ineq.
-                    JSd = jensenshannon(fmt, [minority_fraction] * len(fmt))  # horizontal ineq.
+                    mae = mean_absolute_error(fmt, [minority_fraction] * len(fmt))  # horizontal ineq.
 
                     printf('ranked!')
                     tmp = pd.DataFrame({'kind': 'empirical',
                                         'metric': metric,
                                         'dataset': dataset,
                                         'gini':g,
-                                        'JSd':JSd,
+                                        'mae':mae,
+                                        'epoch':0,
                                         'rank': rank,
                                         'fmt': fmt}, columns=cols)
 
@@ -302,9 +307,9 @@ def rank_empirical(root, datasets, output):
             dataset_rank.to_csv(fndr)
 
         ### adding all metrics of a dataset to final
-        df_rank = df_rank[cols].append(dataset_rank[cols])
+        df_rank = df_rank[cols].append(dataset_rank[cols], ignore_index=True)
 
-    df_rank.to_csv(fntr)
+    save_csv(df_rank, fntr)
     return df_rank
 
 def best_ranking_empirical(df_distance):
@@ -325,8 +330,6 @@ def worst_ranking_empirical(df_distance):
     #df_worst.drop(columns=['pvalue'], inplace=True)
     return df_worst
 
-
-
 def best_ranking_fit(df_distance):
     tmp_min = df_distance.groupby(['dataset', 'metric']).distance.min().reset_index()
     tmp_min = tmp_min.set_index(['dataset', 'metric', 'distance'])
@@ -338,15 +341,6 @@ def best_ranking_fit(df_distance):
 ########################################################################################
 # Divergence metrics
 ########################################################################################
-
-def _JS_fnc(r1, r2):
-    from scipy.spatial import distance
-    d = distance.jensenshannon(r1, r2)
-    return d, None
-
-
-def _KS_fnc(r1, r2):
-    return stats.ks_2samp(r1, r2)
 
 def _divergence_empirical(df_rank, df_summary, fnc_distance):
     cols = ['dataset', 'metric', 'distance', 'pvalue']
@@ -378,27 +372,17 @@ def _divergence_empirical(df_rank, df_summary, fnc_distance):
 
     return df
 
-def JS_divergence_empirical(df_rank, df_summary):
+def _MAE_fnc(r1, r2):
+    return mean_absolute_error(r1,r2),None
+
+def MAE_empirical(df_rank, df_summary):
     '''
-    Computes Jensen-Shannon divergence. 
+    Computes mean absolute error. 
     0 means perfect fit.
     :param df_rank: 
     :return: df
     '''
-    return _divergence_empirical(df_rank, df_summary, _JS_fnc)
-
-def KS_divergence_empirical(df_rank, df_summary):
-    '''
-    Computes the Kolmogorov-Smirnov statistic on 2 samples.
-    This is a two-sided test for the null hypothesis that 2 independent samples are drawn from the same continuous distribution.
-    If the K-S statistic is small or the p-value is high, then we cannot reject the hypothesis that the distributions of the two samples are the same.
-    In other words:
-    If the K-S statistic is large or the p-value is small, then we reject the hypothesis that the distributions of the two samples are the same (thus, they are not the same).
-
-    :param df_rank:
-    :return: df
-    '''
-    return _divergence_empirical(df_rank, df_summary, _KS_fnc)
+    return _divergence_empirical(df_rank, df_summary, _MAE_fnc)
 
 def _divergence_fit(df_rank, fnc_distance):
     cols = ['dataset', 'metric', 'model', 'distance', 'pvalue']
@@ -431,8 +415,49 @@ def _divergence_fit(df_rank, fnc_distance):
                     pass
     return df
 
+def MAE_fit(df_rank):
+    '''
+    Computes mean absolute error 
+    0 means perfect fit.
+    :param df_rank: 
+    :return: df
+    '''
+    return _divergence_fit(df_rank, _MAE_fnc)
 
+@deprecated
+def _JS_fnc(r1, r2):
+    from scipy.spatial import distance
+    d = distance.jensenshannon(r1, r2)
+    return d, None
+@deprecated
+def _KS_fnc(r1, r2):
+    return stats.ks_2samp(r1, r2)
 
+@deprecated
+def JS_divergence_empirical(df_rank, df_summary):
+    '''
+    Computes Jensen-Shannon divergence. 
+    0 means perfect fit.
+    :param df_rank: 
+    :return: df
+    '''
+    return _divergence_empirical(df_rank, df_summary, _JS_fnc)
+
+@deprecated
+def KS_divergence_empirical(df_rank, df_summary):
+    '''
+    Computes the Kolmogorov-Smirnov statistic on 2 samples.
+    This is a two-sided test for the null hypothesis that 2 independent samples are drawn from the same continuous distribution.
+    If the K-S statistic is small or the p-value is high, then we cannot reject the hypothesis that the distributions of the two samples are the same.
+    In other words:
+    If the K-S statistic is large or the p-value is small, then we reject the hypothesis that the distributions of the two samples are the same (thus, they are not the same).
+
+    :param df_rank:
+    :return: df
+    '''
+    return _divergence_empirical(df_rank, df_summary, _KS_fnc)
+
+@deprecated
 def JS_divergence_fit(df_rank):
     '''
     Computes Jensen-Shannon divergence. 
@@ -442,6 +467,7 @@ def JS_divergence_fit(df_rank):
     '''
     return _divergence_fit(df_rank, _JS_fnc)
 
+@deprecated
 def KS_divergence_fit(df_rank):
     '''
     Computes the Kolmogorov-Smirnov statistic on 2 samples.
