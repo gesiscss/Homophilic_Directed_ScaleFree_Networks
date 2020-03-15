@@ -28,8 +28,28 @@ def get_minority_fraction(graph):
 def get_min_degree(graph):
     return min([d for n, d in graph.degree()])
 
-def fit_power_law(data):
-    return powerlaw.Fit(data, xmin=min(data), xmax=max(data), discrete=type(data)==np.int, verbose=False)
+def fit_power_law(data, discrete=True, xmin=None):
+    return powerlaw.Fit(data, discrete=discrete, verbose=False, xmin=xmin if xmin is not None else min(data), xmax=max(data))
+
+def fit_theoretical_power_law(nobs, exp, xmin=None, xmax=None, discrete=True):
+
+    # print()
+    # print(nobs)
+    # print(exp)
+    # print(xmin)
+    # print(xmax)
+    # print(discrete)
+
+
+    if discrete:
+        xmin = int(round(xmin)) if xmin is not None else xmin
+        xmax = int(round(xmax)) if xmax is not None else xmax
+    nobs = int(round(nobs))
+
+    theoretical_distribution = powerlaw.Power_Law(xmin=xmin, xmax=xmax, discrete=discrete, parameters=[exp])
+    simulated_data = theoretical_distribution.generate_random(nobs)
+    return powerlaw.Fit(simulated_data, verbose=False)
+
 
 def get_outdegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.out_degree() if graph.node[n][CLASSNAME] == 0])

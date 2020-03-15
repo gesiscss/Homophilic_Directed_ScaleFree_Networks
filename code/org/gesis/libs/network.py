@@ -200,24 +200,78 @@ def get_nodes_metadata(graph, num_cores=10):
 
     return df
 
-def get_nodes_metadata_big(graph, fn=None, num_cores=10):
+def get_nodes_metadata_big(graph, path, num_cores=10):
+    from sklearn.model_selection import StratifiedShuffleSplit
+
+    ### stratified split (allowing for same fm in sample)
+    Nold = graph.number_of_nodes()
+    Nnew = 100000
+    n_splits = int(np.ceil(Nold / float(Nnew)))
+
+    ### if already exist, return
+    total = len([fn for fn in os.listdir(path) if fn.endswith('.csv') and 'nodes_metadata' in fn])
+    if total == n_splits:
+        printf('Merging all splits into one file...')
+        _merge_metadata_big(path)
+        return
+    elif total == n_splits+1:
+        printf('Nothing to do; all your results already exist. Bye!')
+        return
+
+    ### All nodes and class value
+    X = np.array(list(graph.nodes())) # nodes
+    y = np.array([graph.node[n][graph.graph['label']] for n in X]) # classes
+
+    ### Inferring the metadata for each split
+    sss = StratifiedShuffleSplit(n_splits=n_splits, test_size=Nnew, random_state=0)
+    split = 1
+    for train_index, test_index in sss.split(X, y):
+        printf('')
+        print('=============================')
+        print('Split #{} of {}'.format(split, n_splits))
+        print('- {} nodes ({}% of {})'.format(Nnew, round(Nnew*100. / float(Nold), 2), Nold))
+        nodes = X[test_index]
+        classes = y[test_index]
+        _do_metadata_big(graph, nodes, classes, path, split, num_cores=num_cores)
+        split += 1
+
+    ### merge into 1 file
+    _merge_metadata_big(path)
+
+def _merge_metadata_big(path):
+    files = [os.path.join(path,fn) for fn in os.listdir(path) if fn.endswith('.csv') and 'nodes_metadata' in fn]
+
+    df = None
+    for fn in files:
+        tmp = read_csv(fn)
+
+        if df is None:
+            df = tmp.copy()
+        else:
+            df = df.append(tmp, ignore_index=True)
+
+    fn = os.path.join(path, 'nodes_metadata.csv')
+    save_csv(df, fn)
+    return
+
+def _do_metadata_big(graph, nodes, classes, path, split, num_cores=1):
+
+    ### 0. already exists?
+    fn = os.path.join(path, 'nodes_metadata_{}.csv'.format(split))
+    if os.path.exists(fn):
+        print("- split #{} already exist.".format(split))
+        return
 
     ### 1.
     printf('nodes')
-
     fncpn = fn.replace(".csv", "_nodes.pickle")
     if os.path.exists(fncpn):
         print('loading...')
         nodes = read_pickle(fncpn)
     else:
-        Nold = graph.number_of_nodes()
-        N = 500000
-        nodes = list(graph.nodes())
-        # @todo: do some kind of stratified sampling
-        if N < Nold:
-            print('randomizing: {} out of {} ({}%)...'.format(N, Nold, round(N/Nold,2)))
-            nodes = np.random.choice(nodes, size=N, replace=False).tolist()
-            save_pickle(nodes, fncpn)
+        print('saving...')
+        save_pickle(nodes, fncpn)
+    print('- class distribution: {}'.format(Counter(classes)))
 
     ### 2.
     A = nx.adjacency_matrix(graph, nodes).astype(np.int8) #csr
@@ -233,9 +287,10 @@ def get_nodes_metadata_big(graph, fn=None, num_cores=10):
     else:
         print('computing...')
         cot_per_node = get_circle_of_trust_per_node(A, p=0.85, top=10, num_cores=num_cores)
+        print('saving...')
         save_pickle(cot_per_node, fncpn)
 
-    ## 2.
+    ## 4.
     printf('cot...')
 
     fncpn = fn.replace(".csv", "_cot.pickle")
@@ -245,9 +300,10 @@ def get_nodes_metadata_big(graph, fn=None, num_cores=10):
     else:
         print('computing...')
         cot = frequency_by_circle_of_trust(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
+        print('saving...')
         save_pickle(cot, fncpn)
 
-    ## 3.
+    ## 5.
     printf('wtf...')
 
     fncpn = fn.replace(".csv", "_wtf.pickle")
@@ -257,9 +313,10 @@ def get_nodes_metadata_big(graph, fn=None, num_cores=10):
     else:
         print('computing...')
         wtf = frequency_by_who_to_follow(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
+        print('saving...')
         save_pickle(wtf, fncpn)
 
-    ### 4.
+    ### 6.
     ind = A.sum(axis=0).flatten().tolist()[0]
     printf('ind')
 
@@ -272,22 +329,22 @@ def get_nodes_metadata_big(graph, fn=None, num_cores=10):
     minoriy = [graph.node[n][graph.graph['label']] for n in nodes]
     printf('minority')
 
-    df = pd.DataFrame({'node':nodes,
+    df = pd.DataFrame({'dataset': graph.graph['name'],
+                       'node':nodes,
                        'minority':minoriy,
                        'indegree': ind,
                        'outdegree': outd,
                        'pagerank': pr,
                        'circle_of_trust': cot,
                        'wtf': wtf,
-                       }, columns=['node','minority','indegree','outdegree','pagerank','circle_of_trust','wtf'])
+                       }, columns=['dataset','node','minority','indegree','outdegree','pagerank','circle_of_trust','wtf'])
 
     if fn is not None:
+        print('final saving...')
         save_csv(df, fn)
 
-    return df
-
-def load_all_datasets_node_metadata_empirical(datasets, root):
-    fna = os.path.join(root, 'all_datasets_empirical_metadata.csv')
+def load_all_datasets_node_metadata_fit(datasets, output):
+    fna = os.path.join(output, 'all_datasets_metadata_fit.csv')
     if os.path.exists(fna):
         return read_csv(fna)
 
@@ -298,7 +355,7 @@ def load_all_datasets_node_metadata_empirical(datasets, root):
         df = None
 
         ### loading dataset metadata
-        fn = os.path.join(root, dataset, 'nodes_metadata.csv')
+        fn = os.path.join(output, dataset, 'nodes_metadata.csv')
         if os.path.exists(fn):
             df = read_csv(fn)
             printf('loaded!')
@@ -321,31 +378,43 @@ def load_all_datasets_node_metadata_empirical(datasets, root):
     save_csv(df_metadata, fna)
     return df_metadata
 
-def all_datasets_node_metadata_empirical_degrees(df_metadata):
-    df_metadata_pivot = None
+def load_all_datasets_node_metadata_empirical(datasets, root):
+    fna = os.path.join(root, 'all_datasets_metadata_empirical.csv')
+    if os.path.exists(fna):
+        return read_csv(fna)
 
-    for dataset in df_metadata.dataset.unique():
-        tmp = df_metadata.query("dataset==@dataset").copy().sort_values('node')
+    df_metadata = None
 
-        for metric in ['indegree', 'outdegree']:
-            tmpnew = pd.DataFrame({'dataset': dataset,
-                                   'node': tmp.node,
-                                   'minority': tmp.minority,
-                                   'metric': metric,
-                                   'value': tmp[metric]
-                                   })
-            if df_metadata_pivot is None:
-                df_metadata_pivot = tmpnew.copy()
+    for dataset in datasets:
+        printf('=== {} ==='.format(dataset))
+        df = None
+
+        ### loading dataset metadata
+        fn = os.path.join(root, dataset, 'nodes_metadata.csv')
+        if os.path.exists(fn):
+            df = read_csv(fn)
+            printf('loaded!')
+        else:
+            fn = os.path.join(root, dataset, 'nodes_metadata_incomplete.csv')
+            if os.path.exists(fn):
+                df = read_csv(fn)
+                printf('i-loaded!')
             else:
-                df_metadata_pivot = df_metadata_pivot.append(tmpnew, ignore_index=True)
+                printf("You should compute nodes_metadata.csv for {} using batch_node_attributes.py !!!".format(dataset))
 
-        del (tmpnew)
-        del (tmp)
+        ### df_metadata from all datasets (append)
+        if df is not None:
+            if df_metadata is None:
+                df_metadata = df.copy()
+            else:
+                df_metadata = df_metadata.append(df, ignore_index=True)
+            del (df)
 
-    return df_metadata_pivot
+    save_csv(df_metadata, fna)
+    return df_metadata
 
 def load_all_node_metadata_fit(datasets, models, output):
-    fna = os.path.join(output, 'all_datasets_synthetic_metadata.csv')
+    fna = os.path.join(output, 'all_datasets_metadata_fit.csv')
     if os.path.exists(fna):
         return read_csv(fna)
 
@@ -413,6 +482,32 @@ def load_all_node_metadata_synthetic(model, output):
     save_csv(df_metadata, fna)
     return df_metadata
 
+def all_datasets_node_metadata_degrees_pivot(df_metadata, model=None):
+    df_metadata_pivot = None
+
+    for dataset in df_metadata.dataset.unique():
+        tmp = df_metadata.query("dataset==@dataset").copy().sort_values('node')
+
+        if model is not None and 'model' in tmp.columns:
+            tmp = tmp.query("model==@model").copy()
+
+        for metric in ['indegree', 'outdegree']:
+            tmpnew = pd.DataFrame({'dataset': dataset,
+                                   'node': tmp.node,
+                                   'minority': tmp.minority,
+                                   'metric': metric,
+                                   'value': tmp[metric],
+                                   'epoch':0 if model is None else tmp.epoch,
+                                   })
+            if df_metadata_pivot is None:
+                df_metadata_pivot = tmpnew.copy()
+            else:
+                df_metadata_pivot = df_metadata_pivot.append(tmpnew, ignore_index=True)
+
+        del (tmpnew)
+        del (tmp)
+
+    return df_metadata_pivot
 
 # def mean_lorenz_curves_and_gini_fit(df, metrics):
 #     from org.gesis.libs.utils import gini

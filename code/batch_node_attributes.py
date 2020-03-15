@@ -2,7 +2,7 @@ import os
 import networkx as nx
 
 from org.gesis.libs.arguments import init_batch_node_attributes
-from org.gesis.libs.network import get_nodes_metadata_big
+from org.gesis.libs.network import get_nodes_metadata
 from org.gesis.libs.utils import printf
 from org.gesis.libs import io
 
@@ -18,7 +18,7 @@ def run(params):
         G = nx.read_gpickle(fng)
         printf('computing...')
 
-        df = get_nodes_metadata_big(G, fn, num_cores=params.numcores)
+        df = get_nodes_metadata(G, num_cores=params.numcores)
         df.loc[:, 'dataset'] = params.dataset
         del (G)
 
