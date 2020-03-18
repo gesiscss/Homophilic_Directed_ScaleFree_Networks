@@ -76,114 +76,80 @@ def plot_simple_network(G):
 # Distributions
 ############################################################################################################
 
-def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_fit, model='DHBA', fn=None):
+def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empirical, df_metadata_fit, model='DHBA', fn=None):
 
     plt.close()
 
     ### main data
     metrics = ['indegree', 'outdegree']
     discrete = True
-    label = {0:'Majority', 1:'minority'}
+    labels = {0:'Majority', 1:'minority'}
 
     ### main plot
     nrows = len(metrics)
     ncols = df_metadata_fit.dataset.nunique()
-    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 3.5, 5), sharey=False, sharex=False) #3, 4.5
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 2.6, 5), sharey=False, sharex=False) #3, 4.5
 
     ### subplots
     colors = sns.color_palette("colorblind")
     for col, dataset in enumerate(df_metadata_fit.dataset.unique()):
 
         axes[0, col].set_title(dataset)
-
+        xye = {}
+        xym = {}
         for row, metric in enumerate(metrics):
 
             ### Power-law fit
-            for minority in df_metadata_fit.minority.unique():
-                #data_emp = df_metadata_empirical.query("dataset==@dataset")[metric].values.astype(np.float)
+            txt_emp = "Empirical:" + "\n" + r"$\gamma_{M}=$" + "<maj>" + "\n" + r"$\gamma_{m}=$" + "<min>"
+            txt_fit = model + "\n" + r"$\gamma_{M}=$" + "<maj>" + "\n" + r"$\gamma_{m}=$" + "<min>"
 
-                data_emp = df_summary_empirical.query("dataset.str.lower()==@dataset").iloc[0]
-                data_fit = df_metadata_fit.query("dataset==@dataset & minority==@minority & model==@model")[metric].values.astype(np.float)
+            for minority in df_metadata_fit.minority.unique():
+                sum_emp = df_summary_empirical.query("dataset.str.lower()==@dataset.lower()").iloc[0]
+
+                data_emp = df_metadata_empirical.query("dataset.str.lower()==@dataset.lower() & minority==@minority")[metric].values.astype(np.float)
+                data_fit = df_metadata_fit.query("dataset.str.lower()==@dataset.lower() & minority==@minority & model==@model")[metric].values.astype(np.float)
 
                 ### Empirical:
-                fit_emp = fit_theoretical_power_law(nobs=int(np.ceil(data_emp.N * (data_emp.fm if minority else 1-data_emp.fm) )),
-                                                    xmin=data_emp['kminm' if minority else 'kminM'],
-                                                    exp=data_emp['gammam' if minority else 'gammaM'],
-                                                    discrete=discrete)
-                fit_emp.power_law.plot_pdf(ax=axes[row, col], linestyle='-', color=colors[minority], label=label[minority])
+                label = '{} empirical'.format(labels[minority])
+                fit_emp = fit_power_law(data_emp, discrete=discrete, xmin=sum_emp['kminm' if minority else 'kminM'])
+                fit_emp.power_law.plot_pdf(ax=axes[row, col], linestyle='-', color=colors[minority], label=label)
 
                 ### Model:
-                fit = fit_power_law(data_fit, discrete=discrete, xmin=2)
-                fit.power_law.plot_pdf(ax=axes[row, col], linestyle='--', color=colors[minority], label=model)
+                label = '{} {}'.format(labels[minority], model)
+                fit_mod = fit_power_law(data_fit, discrete=discrete, xmin=2)
+                fit_mod.power_law.plot_pdf(ax=axes[row, col], linestyle='--', color=colors[minority], label=label)
 
+                ### exponents:
+                txt_emp = txt_emp.replace("<min>" if minority else "<maj>", str(round(fit_emp.power_law.alpha,1)))
+                txt_fit = txt_fit.replace("<min>" if minority else "<maj>", str(round(fit_mod.power_law.alpha)))
 
-                # ge = gini(data_emp)
-                # gf = gini(data_fit)
-                # print()
-                # print(dataset)
-                # print(metric)
-                # print(label[hue])
-                # print(ge)
-                # print(gf)
+            ### Exponents
+            if row == 0:
+                xye[metric] = {'aps': (25, 0.01), 'apsgender3': (40, 0.009), 'apsgender8': (41, 0.009), 'github': (200, 0.0017), 'pokec': (50, 0.008), 'wikipedia': (40, 0.015)}
+                xym[metric] = {'aps': (2, 0.0001), 'apsgender3': (2, 0.00001), 'apsgender8': (2, 0.00002), 'github': (3, 0.0000006), 'pokec': (2, 0.00001), 'wikipedia': (2, 0.00004)}
 
-                # fit = fit_theoretical_power_law(nobs=data_emp.N,
-                #                                 xmin=data_emp['kminm' if minority else 'kminM'],
-                #                                 exp=data_emp['gammam' if minority else 'gammaM'],
-                #                                 discrete=discrete)
-                # fit.power_law.plot_pdf(ax=axes[row, col], linestyle='--', color=colors[hue], label='Empirical ({})'.format(label[hue]))
-                #
-                # exponents = []
-                # for epoch in data_fit.epoch.unique():
-                #     tmp = data_fit.query("epoch == @epoch")[metric].values.astype(np.float)
-                #     fit = fit_power_law(tmp, discrete)
-                #     exponents.append(fit.power_law.alpha)
-                #
-                # print()
-                # print(dataset)
-                # print(metric)
-                # print(label[hue])
-                # print(exponents)
-                # print(np.mean(exponents))
-                # print(data_emp['gammam' if minority else 'gammaM'])
+            else:
+                xye[metric] = {'aps': (11, 0.025), 'apsgender3': (155, 0.003), 'apsgender8': (150, 0.00013), 'github': (200, 0.0015), 'pokec': (25, 0.022), 'wikipedia': (40, 0.003)}
+                xym[metric] = {'aps': (2, 0.0001), 'apsgender3': (2, 0.000001), 'apsgender8': (2, 0.00000000002), 'github': (3, 0.00000006), 'pokec': (2, 0.0001), 'wikipedia': (2, 0.0000004)}
 
-                # fit = fit_theoretical_power_law(obs=tmp.shape[0],
-                #                                 xmin=tmp[metric].min(),
-                #                                 xmax=tmp[metric].max(),
-                #                                 exp=data_emp['gammam' if minority else 'gammaM'],
-                #                                 discrete=discrete)
-
-
-                # ### only empirical (old way)
-                # fit = fit_power_law(data_emp, discrete)
-                # g = round(gini(data_emp), 2)
-                # ###
-                # fit.plot_pdf(ax=axes[row, col], linewidth=3, color=colors[hue], label='{} (Gini: {})'.format(label[minority], g))  # empirical
-                # legend = 'Fit (' + '$k_{min}=$' + '{:.0f}; '.format(fit.power_law.xmin) + \
-                #          '$\gamma   =$' + '{:.2f})'.format(fit.power_law.alpha)
-                # fit.power_law.plot_pdf(ax=axes[row, col], linestyle='--', color=colors[hue], label=legend)  # model
-                # axes[row, col].legend(loc='best')
-
-
-                ### empirical and model
-                # for source, data in [('Empirical',data_emp), (model,data_fit)]:
-                #     fit = fit_power_law(data, discrete)
-                #     #g = round(gini(data), 2)
-                #     legend = '{} ({})'.format(source, label[hue])
-                #     fit.power_law.plot_pdf(ax=axes[row, col], linestyle='--' if source == model else '-', color=colors[hue], label=legend)
-
+            axes[row, col].text(s=txt_emp, x=xye[metric][dataset][0], y=xye[metric][dataset][1])
+            axes[row, col].text(s=txt_fit, x=xym[metric][dataset][0], y=xym[metric][dataset][1])
 
             ### y-label right
             if col == ncols - 1:
                 xt = axes[row, col].get_xticks()
                 yt = axes[row, col].get_yticks()
                 axes[row, col].text(s=metric,
-                                    x=max(xt),
-                                    y=yt[int(len(yt)/2)], rotation=-90)
+                                    x=max(xt) / 18,
+                                    y=yt[int(np.ceil(len(yt)/2.))], rotation=-90)
 
     ### legend
-    axes[0,0].legend(loc='lower left',
-                     bbox_to_anchor=(-0.04, 1.12, 4*1.075, 0.2), mode='expand',
-                     ncol=4, handletextpad=0.1, frameon=False)
+    width = 4*1.1
+    row = 0
+    col = int(axes.shape[1] / 2)
+    axes[row,col].legend(loc='lower left',
+                     bbox_to_anchor=(width/-1.8, 1.12, width, 0.2), mode='expand',
+                     ncol=4, handletextpad=0.3, frameon=False)
 
     ### ylabel
     ylabel = 'P(x)'
@@ -194,8 +160,8 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_fit, 
     else:
         xt = axes[row, col].get_xticks()
         yt = axes[row, col].get_yticks()
-        axes[row, col].text(min(xt),
-                            max(yt),
+        axes[row, col].text(min(xt) * 5,
+                            max(yt) / 10,
                             ylabel, {'ha': 'center', 'va': 'center'}, rotation=90)
 
     ### xlabel
@@ -207,12 +173,12 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_fit, 
     else:
         xt = axes[row, col].get_xticks()
         yt = axes[row, col].get_yticks()
-        axes[row, col].text(min(xt),
-                            min(yt),
+        axes[row, col].text(min(xt) * 3,
+                            min(yt) * 10,
                             xlabel, {'ha': 'center', 'va': 'center'}, rotation=0)
 
     ### space between subplots
-    plt.subplots_adjust(hspace=0.2, wspace=0.3)
+    plt.subplots_adjust(hspace=0.2, wspace=0.32)
 
     ### Save fig
     if fn is not None:
@@ -223,91 +189,170 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_fit, 
     plt.show()
     plt.close()
 
-def plot_degree_distributions_groups(df_metadata_pivot, fn=None):
-    g = sns.FacetGrid(df_metadata_pivot.query("metric!='pagerank'"), col='dataset', row='metric',
-                      hue="minority",
-                      legend_out=False,
-                      margin_titles=True,
-                      palette="deep",
-                      sharex=False,
-                      sharey=False,
-                      height=2.2, aspect=1.0,
-                      hue_order=[0, 1]
-                      )
-    g = g.map_dataframe(_plot_empirical_and_powerlaw_fit, 'value')
+def plot_degree_distributions_groups(df_metadata, fn=None):
+    plt.close()
 
-    for ax in g.axes.ravel():
-        ax.legend()
+    ### main data
+    metrics = ['indegree', 'outdegree']
+    discrete = True
+    labels = {0: 'Majority', 1: 'minority'}
 
-    plt.subplots_adjust(hspace=0.1, wspace=0.1)
+    ### main plot
+    nrows = len(metrics)
+    ncols = df_metadata.dataset.nunique()
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 3.9, 5.5), sharey=False, sharex=False)  # 3, 4.5
 
+    ### subplots
+    colors = sns.color_palette("colorblind")
+    for col, dataset in enumerate(df_metadata.dataset.unique()):
+        axes[0, col].set_title(dataset)
+
+        for row, metric in enumerate(metrics):
+            ### Power-law fit
+            for minority in df_metadata.minority.unique():
+                data = df_metadata.query("dataset.str.lower()==@dataset.lower() & minority==@minority")[metric].values.astype(np.float)
+
+                fit = fit_power_law(data, discrete=discrete)
+                g = round(gini(data), 2)
+
+                label = '{} Gini={}'.format(labels[minority], g)
+                fit.plot_pdf(ax=axes[row, col], linewidth=3, linestyle='-', color=colors[minority], label=label)
+
+                label = 'Fit (' + '$k_{min}=$' + '{:.0f}; '.format(fit.power_law.xmin) + '$\gamma   =$' + '{:.2f})'.format(fit.power_law.alpha)
+                fit.power_law.plot_pdf(ax=axes[row, col], linestyle='--', color=colors[minority], label=label)
+
+                axes[row, col].legend(loc='best')
+
+            ### y-label right
+            if col == ncols - 1:
+                xt = axes[row, col].get_xticks()
+                yt = axes[row, col].get_yticks()
+                axes[row, col].text(s=metric,
+                                    x=max(xt) / 19. + (row*2),
+                                    y=yt[int(np.ceil(len(yt) / 2.))] * (1 - row*0.55), rotation=-90)
+
+    ### ylabel
+    ylabel = 'P(x)'
+    row = int(axes.shape[0] / 2)
+    col = 0
+    if nrows % 2 != 0:
+        axes[row, col].set_ylabel(ylabel)
+    else:
+        xt = axes[row, col].get_xticks()
+        yt = axes[row, col].get_yticks()
+        axes[row, col].text(min(xt) * 27,
+                            max(yt) / 10,
+                            ylabel, {'ha': 'center', 'va': 'center'}, rotation=90)
+
+    ### xlabel
+    xlabel = 'Degree'
+    row = -1
+    col = int(axes.shape[1] / 2)
+    if ncols % 2 != 0:
+        axes[row, col].set_xlabel(xlabel)
+    else:
+        xt = axes[row, col].get_xticks()
+        yt = axes[row, col].get_yticks()
+        axes[row, col].text(min(xt) * 3,
+                            min(yt) * 10,
+                            xlabel, {'ha': 'center', 'va': 'center'}, rotation=0)
+
+    ### space between subplots
+    plt.subplots_adjust(hspace=0.2, wspace=0.2)
+
+    ### Save fig
     if fn is not None:
-        g.savefig(fn, bbox_inches='tight')
+        fig.savefig(fn, bbox_inches='tight')
         print('{} saved!'.format(fn))
 
-def _plot_empirical_and_powerlaw_fit(x, **kwargs):
-    '''
-    kwargs: data, color, label
-    '''
-    ax = plt.gca()
-    df = kwargs.pop("data")
-    label = kwargs.pop("label")
-    group = {1: 'minority', 0: 'Majority'}[label]
-    color = sns.color_palette("deep", 2)[label]
-    discrete = df.metric.unique()[0] in ['indegree','outdegree','wtf','circle_of_trust']
+    ###
+    plt.show()
+    plt.close()
 
-    if 'epoch' in df.columns:
-        exp = []
-        xmin = []
-        xmax = []
-        nobs = []
-        for epoch in df.epoch.unique():
-            data = df.query("epoch==@epoch & value>0").copy()
-            data = np.sort(data[x].values.astype(np.float))
-            ###
-            fit = fit_power_law(data)
-            g = round(gini(data), 2)
-            ###
-            fit.plot_pdf(ax=ax, linewidth=3, color=color, label=group if epoch == 0 else None)  # empirical
-            exp.append(fit.power_law.alpha)
-            xmin.append(data.min())
-            xmax.append(data.max())
-            nobs.append(data.shape[0])
+    # g = sns.FacetGrid(df_metadata_pivot.query("metric!='pagerank'"), col='dataset', row='metric',
+    #                   hue="minority",
+    #                   legend_out=False,
+    #                   margin_titles=True,
+    #                   palette="deep",
+    #                   sharex=False,
+    #                   sharey=False,
+    #                   height=2.2, aspect=1.0,
+    #                   hue_order=[0, 1]
+    #                   )
+    # g = g.map_dataframe(_plot_empirical_and_powerlaw_fit, 'value')
+    #
+    # for ax in g.axes.ravel():
+    #     ax.legend()
+    #
+    # plt.subplots_adjust(hspace=0.1, wspace=0.1)
+    #
+    # if fn is not None:
+    #     g.savefig(fn, bbox_inches='tight')
+    #     print('{} saved!'.format(fn))
 
-        ###
-        #print('{} \t {} \t {} \t {} \t {}'.format(x,np.mean(nobs), np.mean(xmin), np.mean(xmax), np.mean(exp)))
-        fit = fit_theoretical_power_law(np.mean(nobs), np.mean(xmin), np.mean(xmax), np.mean(exp), discrete=discrete)
-        legend = 'Fit (' + '$\gamma   =$' + '{:.2f})'.format(fit.power_law.alpha)
-        fit.power_law.plot_pdf(ax=ax, linestyle='--', color=color, label=legend)  # model
-        ###
-        ax.set_ylabel(u"p(X)")
-        ax.set_xlabel(x)
-
-        ### mean curve:
-        # data = None
-        # for epoch in df.epoch.unique():
-        #     tmp = df.query("epoch==@epoch").copy()
-        #     tmp = np.sort(tmp[x].values.astype(np.float))
-        #
-        #     if data is None:
-        #         data = tmp.copy()
-        #     else:
-        #         data = data + data
-        # data = data / df.epoch.nunique()
-
-    else:
-        data = df.query('value>0')[x].values.astype(np.float)
-        ###
-        fit = fit_power_law(data, discrete)
-        g = round(gini(data), 2)
-        ###
-        fit.plot_pdf(ax=ax,linewidth=3, color=color, label='{} (Gini: {})'.format(group,g)) # empirical
-        legend = 'Fit (' + '$k_{min}=$' + '{:.0f}; '.format(fit.power_law.xmin) + \
-                 '$\gamma   =$' + '{:.2f})'.format(fit.power_law.alpha)
-        fit.power_law.plot_pdf(ax=ax, linestyle='--', color=color, label=legend) # model
-        ###
-        ax.set_ylabel(u"p(X)")
-        ax.set_xlabel(x)
+# def _plot_empirical_and_powerlaw_fit(x, **kwargs):
+#     '''
+#     kwargs: data, color, label
+#     '''
+#     ax = plt.gca()
+#     df = kwargs.pop("data")
+#     label = kwargs.pop("label")
+#     group = {1: 'minority', 0: 'Majority'}[label]
+#     color = sns.color_palette("deep", 2)[label]
+#     discrete = df.metric.unique()[0] in ['indegree','outdegree','wtf','circle_of_trust']
+#
+#     if 'epoch' in df.columns:
+#         exp = []
+#         xmin = []
+#         xmax = []
+#         nobs = []
+#         for epoch in df.epoch.unique():
+#             data = df.query("epoch==@epoch & value>0").copy()
+#             data = np.sort(data[x].values.astype(np.float))
+#             ###
+#             fit = fit_power_law(data)
+#             g = round(gini(data), 2)
+#             ###
+#             fit.plot_pdf(ax=ax, linewidth=3, color=color, label=group if epoch == 0 else None)  # empirical
+#             exp.append(fit.power_law.alpha)
+#             xmin.append(data.min())
+#             xmax.append(data.max())
+#             nobs.append(data.shape[0])
+#
+#         ###
+#         #print('{} \t {} \t {} \t {} \t {}'.format(x,np.mean(nobs), np.mean(xmin), np.mean(xmax), np.mean(exp)))
+#         fit = fit_theoretical_power_law(np.mean(nobs), np.mean(xmin), np.mean(xmax), np.mean(exp), discrete=discrete)
+#         legend = 'Fit (' + '$\gamma   =$' + '{:.2f})'.format(fit.power_law.alpha)
+#         fit.power_law.plot_pdf(ax=ax, linestyle='--', color=color, label=legend)  # model
+#         ###
+#         ax.set_ylabel(u"p(X)")
+#         ax.set_xlabel(x)
+#
+#         ### mean curve:
+#         # data = None
+#         # for epoch in df.epoch.unique():
+#         #     tmp = df.query("epoch==@epoch").copy()
+#         #     tmp = np.sort(tmp[x].values.astype(np.float))
+#         #
+#         #     if data is None:
+#         #         data = tmp.copy()
+#         #     else:
+#         #         data = data + data
+#         # data = data / df.epoch.nunique()
+#
+#     else:
+#         data = df.query('value>0')[x].values.astype(np.float)
+#         ###
+#         fit = fit_power_law(data, discrete)
+#         g = round(gini(data), 2)
+#         ###
+#         fit.plot_pdf(ax=ax,linewidth=3, color=color, label='{} (Gini: {})'.format(group,g)) # empirical
+#         legend = 'Fit (' + '$k_{min}=$' + '{:.0f}; '.format(fit.power_law.xmin) + \
+#                  '$\gamma   =$' + '{:.2f})'.format(fit.power_law.alpha)
+#         fit.power_law.plot_pdf(ax=ax, linestyle='--', color=color, label=legend) # model
+#         ###
+#         ax.set_ylabel(u"p(X)")
+#         ax.set_xlabel(x)
 
 
 ############################################################################################################
@@ -925,7 +970,7 @@ def plot_vh_inequalities_per_dataset_and_metric(df_metadata, df_rank, df_summary
             axes[row, col].plot(np.arange(X_lorenz.size) / (X_lorenz.size - 1), X_lorenz, label=metric, color=colors[i])
             axes[row, col].text(s=r'$Gini='+str(gc)+'$', x=0, y=0.9 if metric == metrics[0] else 0.8, color=colors[i])
             axes[row, 0].set_ylabel('Fraction of total wealth\nin Bottom-k%')
-            axes[row, col].set_xlabel('Bottom-k% of nodes')
+            axes[row, col].set_xlabel('')
             axes[row, col].plot([0,1],[0,1],linestyle='--',color='grey')
             axes[row, col].xaxis.set_major_locator(plt.MaxNLocator(3))
             axes[row, col].xaxis.set_minor_locator(plt.MaxNLocator(10))
@@ -956,10 +1001,23 @@ def plot_vh_inequalities_per_dataset_and_metric(df_metadata, df_rank, df_summary
                                      y=0.9 if metric == metrics[0] else 0.8, color=colors[i])
 
             axes[row, 0].set_ylabel('Fraction of minorities\nin Top-k%')
-            axes[row, col].set_xlabel('Rank k%')
+            axes[row, col].set_xlabel('')
             axes[row, col].xaxis.set_major_locator(plt.MaxNLocator(3))
             axes[row, col].xaxis.set_minor_locator(plt.MaxNLocator(10))
             axes[row, col].set_xlim(0 - 0.05, 1 + 0.05)
+
+    ### xlabel
+    xlabels = ['Bottom-k% of nodes', 'Rank k%']
+    col = int(axes.shape[1] / 2)
+    for row, xlabel in enumerate(xlabels):
+        if ncols % 2 != 0:
+            axes[row, col].set_xlabel(xlabel)
+        else:
+            xt = axes[row, col].get_xticks()
+            yt = axes[row, col].get_yticks()
+            axes[row, col].text(min(xt) + 0.3,
+                                min(yt) - 0.1,
+                                xlabel, {'ha': 'center', 'va': 'center'}, rotation=0)
 
     ### space between subplots
     plt.subplots_adjust(hspace=0.35, wspace=0.1)

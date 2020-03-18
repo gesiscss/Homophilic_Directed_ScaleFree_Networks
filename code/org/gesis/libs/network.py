@@ -189,14 +189,15 @@ def get_nodes_metadata(graph, num_cores=10):
         cot = None
         wtf = None
 
-    df = pd.DataFrame({'node':nodes,
+    df = pd.DataFrame({'dataset':graph.graph['name'],
+                       'node':nodes,
                        'minority':minoriy,
                        'indegree': ind,
                        'outdegree': outd,
                        'pagerank': pr,
                        'circle_of_trust': cot,
                        'wtf': wtf,
-                       }, columns=['node','minority','indegree','outdegree','pagerank','circle_of_trust','wtf'])
+                       }, columns=['dataset','node','minority','indegree','outdegree','pagerank','circle_of_trust','wtf'])
 
     return df
 
@@ -212,7 +213,7 @@ def get_nodes_metadata_big(graph, path, num_cores=10):
     total = len([fn for fn in os.listdir(path) if fn.endswith('.csv') and 'nodes_metadata' in fn])
     if total == n_splits:
         printf('Merging all splits into one file...')
-        _merge_metadata_big(path)
+        _merge_metadata_big(path, graph)
         return
     elif total == n_splits+1:
         printf('Nothing to do; all your results already exist. Bye!')
@@ -236,14 +237,19 @@ def get_nodes_metadata_big(graph, path, num_cores=10):
         split += 1
 
     ### merge into 1 file
-    _merge_metadata_big(path)
+    _merge_metadata_big(path, graph)
 
-def _merge_metadata_big(path):
+def _merge_metadata_big(path, graph):
     files = [os.path.join(path,fn) for fn in os.listdir(path) if fn.endswith('.csv') and 'nodes_metadata' in fn]
 
     df = None
     for fn in files:
         tmp = read_csv(fn)
+
+        if 'dataset' not in tmp.columns:
+            tmp.loc[:,'dataset'] = graph.graph['name'].lower()
+            tmp = tmp[['dataset','node','minority','indegree','outdegree','pagerank','circle_of_trust','wtf']]
+            save_csv(tmp, fn)
 
         if df is None:
             df = tmp.copy()

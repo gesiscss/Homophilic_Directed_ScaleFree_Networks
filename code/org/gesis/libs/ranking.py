@@ -265,11 +265,11 @@ def rank_empirical(root, datasets, output):
             fn = os.path.join(root, dataset.lower(), 'nodes_metadata.csv')
             printf(os.path.exists(fn))
 
-            # @ todo: remove this once pokec has node_metadata complete
-            if not os.path.exists(fn):
-                print('no metadata for {}'.format(dataset))
-                fn = fn.replace(".csv","_incomplete.csv")
-                #warnings.warn('{} does not exist.'.format(fn),  UserWarning)
+            # # @ todo: remove this once pokec has node_metadata complete
+            # if not os.path.exists(fn):
+            #     print('no metadata for {}'.format(dataset))
+            #     fn = fn.replace(".csv","_incomplete.csv")
+            #     #warnings.warn('{} does not exist.'.format(fn),  UserWarning)
 
             printf('loading...')
             metadata = read_csv(fn)
@@ -390,8 +390,10 @@ def _divergence_fit(df_rank, fnc_distance):
 
     for dataset in df_rank.dataset.unique():
         for metric in df_rank.metric.unique():
-            if dataset.lower() in ['pokec', 'github'] and metric != 'pagerank':
-                continue
+
+            # # @todo: remove this once we have nodes_metadata.csv for all
+            # if dataset.lower() in ['pokec', 'github'] and metric != 'pagerank':
+            #     continue
 
             r1 = df_rank.query("dataset == @dataset & metric==@metric & kind=='empirical'").sort_values('rank').fmt
 

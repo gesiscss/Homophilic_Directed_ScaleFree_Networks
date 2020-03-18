@@ -29,7 +29,11 @@ def get_min_degree(graph):
     return min([d for n, d in graph.degree()])
 
 def fit_power_law(data, discrete=True, xmin=None):
-    return powerlaw.Fit(data, discrete=discrete, verbose=False, xmin=xmin if xmin is not None else min(data), xmax=max(data))
+    return powerlaw.Fit(data,
+                        discrete=discrete,
+                        xmin=xmin if xmin is not None else min(data),
+                        xmax=max(data),
+                        verbose=False)
 
 def fit_theoretical_power_law(nobs, exp, xmin=None, xmax=None, discrete=True):
 
