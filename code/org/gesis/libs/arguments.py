@@ -148,17 +148,36 @@ def init_batch_model_fit():
                         help='Number of nodes.',
                         )
 
-    parser.add_argument('-kmin', action='store',
-                        dest='kmin',
-                        required=True,
+    parser.add_argument('-kminm', action='store',
+                        dest='kminm',
                         type=int,
                         default=None,
-                        help='Minimun degree.',
+                        help='Minimun degree for minorities.',
+                        )
+
+    parser.add_argument('-kmaxm', action='store',
+                        dest='kmaxm',
+                        type=int,
+                        default=None,
+                        help='Maximum degree for minorities.',
+                        )
+
+    parser.add_argument('-kminM', action='store',
+                        dest='kminM',
+                        type=int,
+                        default=None,
+                        help='Minimun degree for majorities.',
+                        )
+
+    parser.add_argument('-kmaxM', action='store',
+                        dest='kmaxM',
+                        type=int,
+                        default=None,
+                        help='Maximum degree for majorities.',
                         )
 
     parser.add_argument('-density', action='store',
                         dest='density',
-                        required=True,
                         type=float,
                         default=None,
                         help='Edge density.',
@@ -187,7 +206,8 @@ def init_batch_model_fit():
     print('model .................. = ', results.model)
     print('dataset ................ = ', results.dataset)
     print('N ...................... = ', results.N)
-    print('kmin ................... = ', results.kmin)
+    print('kminM ................... = ', results.kminM)
+    print('kminm ................... = ', results.kminm)
     print('density ................ = ', results.density)
     print('epoch .................. = ', results.epoch)
     print('output ................. = ', results.output)

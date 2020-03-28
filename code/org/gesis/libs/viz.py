@@ -915,7 +915,7 @@ def _ranking_cdf(x, y, hue, **kwargs):
 
         _,_ = ax.set_xlim(cdf.index[0]-sd,cdf.index[-1]+sd)
 
-def plot_cdf_ranking(df, df_summary, col='dataset', hue='metric', hue_order=['pagerank','circle_of_trust','wtf'], fn=None):
+def plot_cdf_ranking(df, df_summary, col='dataset', hue='metric', hue_order=['pagerank','wtf'], fn=None):
     plt.close()
 
     ### plot

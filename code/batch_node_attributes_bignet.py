@@ -15,7 +15,7 @@ def run(params):
     G = nx.read_gpickle(fng)
     printf('computing...')
 
-    get_nodes_metadata_big(G, path, num_cores=params.numcores)
+    get_nodes_metadata_big(G, path, original=True, num_cores=params.numcores)
     del (G)
 
 if __name__ == "__main__":

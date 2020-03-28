@@ -1,4 +1,5 @@
 import os
+import deprecated
 import warnings
 import operator
 import numpy as np
@@ -19,7 +20,7 @@ VALID_METRICS = ['indegree','outdegree','pagerank', 'circle_of_trust', 'wtf']
 
 
 def _rank(rank_dict):
-    x_list = [];
+    x_list = []
     y_list = []
     N = len(rank_dict.keys())
 
@@ -39,7 +40,7 @@ def _rank(rank_dict):
         y_list.append(float(count_min) / (count_min + count_maj))
     return x_list, y_list
 
-
+@deprecated
 def _rank_function_graph(G, metric, minority=None):
     if metric == 'degree':
         rank = dict(G.degree())
@@ -109,7 +110,7 @@ def _rank_function_matrix(df, metric):
     rank_val = 0
     rank_index_dict = {}
     rank_dict = defaultdict(list)
-    count_all_min = 0;
+    count_all_min = 0
     count_all_maj = 0
 
     for index, row in sorted_rnk.iterrows():
@@ -263,14 +264,6 @@ def rank_empirical(root, datasets, output):
         else:
 
             fn = os.path.join(root, dataset.lower(), 'nodes_metadata.csv')
-            printf(os.path.exists(fn))
-
-            # # @ todo: remove this once pokec has node_metadata complete
-            # if not os.path.exists(fn):
-            #     print('no metadata for {}'.format(dataset))
-            #     fn = fn.replace(".csv","_incomplete.csv")
-            #     #warnings.warn('{} does not exist.'.format(fn),  UserWarning)
-
             printf('loading...')
             metadata = read_csv(fn)
             printf('loaded')

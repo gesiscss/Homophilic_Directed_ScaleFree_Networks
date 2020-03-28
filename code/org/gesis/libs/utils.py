@@ -62,7 +62,7 @@ def get_outdegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.out_degree() if graph.node[n][CLASSNAME] == 1])
     fitm = fit_power_law(x)
 
-    return fitM.power_law.alpha, fitM.power_law.xmin, fitm.power_law.alpha, fitm.power_law.xmin
+    return fitM, fitm
 
 def get_indegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.in_degree() if graph.node[n][CLASSNAME] == 0])
@@ -71,7 +71,7 @@ def get_indegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.in_degree() if graph.node[n][CLASSNAME] == 1])
     fitm = fit_power_law(x)
 
-    return fitM.power_law.alpha, fitM.power_law.xmin, fitm.power_law.alpha, fitm.power_law.xmin
+    return fitM, fitm
 
 def lorenz_curve(X):
     X_lorenz = np.sort(X)

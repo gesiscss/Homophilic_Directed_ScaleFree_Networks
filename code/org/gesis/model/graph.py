@@ -46,17 +46,20 @@ class DirectedGraph(object):
     '''
     Cosntructor
     '''
-    def __init__(self, model, N, kmin, density, minority_fraction, gamma_m, gamma_M, h_mm, h_MM, triads_ratio, triads_pdf):
+    def __init__(self, model, N, density, minority_fraction, kmin_M, kmax_M, kmin_m, kmax_m, gamma_M, gamma_m, h_MM, h_mm, triads_ratio, triads_pdf):
         self.model = model
         self.G = None
         self.N = N
-        self.kmin = kmin
         self.density = density
         self.minority_fraction = minority_fraction
-        self.gamma_m = gamma_m
+        self.kmin_M = kmin_M
+        self.kmax_M = kmax_M
+        self.kmin_m = kmin_m
+        self.kmax_m = kmax_m
         self.gamma_M = gamma_M
-        self.h_mm = h_mm
+        self.gamma_m = gamma_m
         self.h_MM = h_MM
+        self.h_mm = h_mm
         self.triads_ratio = triads_ratio
         self.triads_pdf = triads_pdf
         self.duration = 0
@@ -97,15 +100,18 @@ class DirectedGraph(object):
                                                  triads_pdf=self.triads_pdf,
                                                  seed=seed)
         elif self.model == kDHBA:
-            self.G,_ = DHBA.directed_homophilic_barabasi_albert_graph(N=self.N,
-                                                                      kmin=self.kmin,
-                                                                      density=self.density,
-                                                                      minority_fraction=self.minority_fraction,
-                                                                      h_mm=self.h_mm,
-                                                                      h_MM=self.h_MM,
-                                                                      gamma_m=self.gamma_m,
-                                                                      gamma_M=self.gamma_M,
-                                                                      seed=seed)
+            self.G = DHBA.directed_homophilic_barabasi_albert_graph(N=self.N,
+                                                                    density=self.density,
+                                                                    minority_fraction=self.minority_fraction,
+                                                                    kmin_M=self.kmin_M,
+                                                                    kmax_M=self.kmax_M,
+                                                                    kmin_m=self.kmin_m,
+                                                                    kmax_m=self.kmax_m,
+                                                                    h_MM=self.h_MM,
+                                                                    h_mm=self.h_mm,
+                                                                    gamma_M=self.gamma_M,
+                                                                    gamma_m=self.gamma_m,
+                                                                    seed=seed)
         elif self.model == kDHTBA:
             self.G,_ = DHTBA.directed_homophilic_triadic_barabasi_albert_graph(N=self.N,
                                                                                kmin=self.kmin,
@@ -159,14 +165,34 @@ class DirectedGraph(object):
         return os.path.join(output,fn)
 
     def get_filename(self, prefix=None, epoch=None):
-        return '{}{}-N{}-kmin{}-fm{}-hMM{}-hmm{}{}.gpickle'.format('{}-'.format(prefix) if prefix is not None else '',
-                                                                 self.model,
-                                                                 self.N,
-                                                                 self.kmin,
-                                                                 round(self.minority_fraction,1),
-                                                                 round(self.h_MM,2),
-                                                                 round(self.h_mm,2),
-                                                                 '-ID{}'.format(epoch) if epoch is not None else '')
+
+        if self.model == kDBA:
+            fn = None
+        elif self.model == kDH:
+            fn = None
+        elif self.model == kDT:
+            fn = None
+        elif self.model == kDHBA:
+            fn = '<prefix><model>-N<N>-fm<fm>-d<d>-kminM<kminM>-kmaxM<kmaxM>-kminm<kminm>-kmaxm<kmaxm>-hMM<hMM>-hmm<hmm>-gM<gM>-gm<gm><ID>.gpickle'
+        elif self.model == kDHTBA:
+            fn = None
+
+        fn = fn.replace('<prefix>','{}-'.format(prefix) if prefix is not None else '')
+        fn = fn.replace('<model>',self.model)
+        fn = fn.replace('<N>', str(self.N))
+        fn = fn.replace('<fm>', str(round(self.minority_fraction,1)))
+        fn = fn.replace('<d>', str(round(self.density, 5)))
+        fn = fn.replace('<kminM>', str(self.kmin_M))
+        fn = fn.replace('<kmaxM>', str(self.kmax_M))
+        fn = fn.replace('<kminm>', str(self.kmin_m))
+        fn = fn.replace('<kmaxm>', str(self.kmax_m))
+        fn = fn.replace('<hMM>', str(round(self.h_MM,1)))
+        fn = fn.replace('<hmm>', str(round(self.h_mm)))
+        fn = fn.replace('<gM>', str(round(self.gamma_M)))
+        fn = fn.replace('<gm>', str(round(self.gamma_m)))
+        fn = fn.replace('<ID>', '-ID{}'.format(epoch) if epoch is not None else '')
+
+        return fn
 
 
     '''

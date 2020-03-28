@@ -25,6 +25,12 @@ from org.gesis.libs.io import read_pickle
 from org.gesis.libs.io import save_pickle
 
 ##################################################################################################
+# Constants
+##################################################################################################
+
+BIGNET = 11000
+
+##################################################################################################
 # Functions
 ##################################################################################################
 
@@ -32,8 +38,8 @@ from org.gesis.libs.io import save_pickle
 ###############################################################
 # Distributions
 ###############################################################
-def power_law_distribution(k_min, gamma, n):
-    theoretical_distribution = powerlaw.Power_Law(xmin=k_min, parameters=[gamma])
+def power_law_distribution(n, gamma, k_min=None, k_max=None):
+    theoretical_distribution = powerlaw.Power_Law(xmin=k_min, xmax=k_max, parameters=[gamma])
     return theoretical_distribution.generate_random(n)
 
 def random_draw(target_list, activity_distribution):
@@ -81,7 +87,7 @@ def all_datasets_summary_as_latex(df_summary, output=None):
 def get_network_summary(G):
     from org.gesis.model.DHBA import estimate_homophily_empirical
 
-    columns = ['dataset','N','cc','class','m','M','fm','E','Emm','EMM','EmM','EMm','density','gammaM','kminM','gammam','kminm','hMM','hmm','triadsratio','triadspdf']
+    columns = ['dataset','N','cc','class','m','M','fm','E','Emm','EMM','EmM','EMm','density','gammaM','kminM','kmaxM','gammam','kminm','kmaxm','hMM','hmm','triadsratio','triadspdf']
     EMM, EMm, EmM, Emm = utils.get_edge_type_counts(G)
     E = G.number_of_edges()
     fm = utils.get_minority_fraction(G)
@@ -96,8 +102,14 @@ def get_network_summary(G):
     else:
         triads_pdf = [1 / len(triads.get_triads_ids()) for key in triads.get_triads_ids()]
 
-    gamma_M_out, xmin_M_out, gamma_m_out, xmin_m_out = utils.get_outdegree_powerlaw_exponents(G)
-    gamma_M_in, xmin_M_in, gamma_m_in, xmin_m_in = utils.get_indegree_powerlaw_exponents(G)
+    fitM, fitm = utils.get_outdegree_powerlaw_exponents(G)
+    gamma_M_out, xmin_M_out, xmax_M_out = fitM.power_law.alpha, fitM.power_law.xmin, fitM.power_law.xmax
+    gamma_m_out, xmin_m_out, xmax_m_out = fitm.power_law.alpha, fitm.power_law.xmin, fitm.power_law.xmax
+
+    fitM, fitm = utils.get_indegree_powerlaw_exponents(G)
+    gamma_M_in, xmin_M_in, xmax_M_in = fitM.power_law.alpha, fitM.power_law.xmin, fitM.power_law.xmax
+    gamma_m_in, xmin_m_in, xmax_m_in = fitm.power_law.alpha, fitm.power_law.xmin, fitm.power_law.xmax
+
     hMM, hmm = estimate_homophily_empirical(G, gammaM_in=gamma_M_in, gammam_in=gamma_m_in)
 
     return pd.DataFrame({'dataset':[utils.get_graph_metadata(G,'name')],
@@ -115,8 +127,10 @@ def get_network_summary(G):
                          'EMm': [EMm/E],
                          'gammaM': [gamma_M_out],
                          'kminM': [xmin_M_out],  #outdegree
+                         'kmaxM': [xmax_M_out],  # outdegree
                          'gammam': [gamma_m_out],
                          'kminm': [xmin_m_out],  # outdegree
+                         'kmaxm': [xmax_m_out],  # outdegree
                          'hMM': [hMM],
                          'hmm': [hmm],
                          'triadsratio': [triads_ratio],
@@ -175,7 +189,7 @@ def get_nodes_metadata(graph, num_cores=10):
     pr = pagerank_power(A, p=0.85).tolist()
     minoriy = [graph.node[n][graph.graph['label']] for n in nodes]
 
-    if graph.number_of_nodes() < 11000:
+    if graph.number_of_nodes() < BIGNET:
         printf('cot_per_node...')
         cot_per_node = get_circle_of_trust_per_node(A, p=0.85, top=10, num_cores=num_cores)
 
@@ -201,46 +215,111 @@ def get_nodes_metadata(graph, num_cores=10):
 
     return df
 
-def get_nodes_metadata_big(graph, path, num_cores=10):
+def get_nodes_metadata_big(graph, path, original=False, num_cores=10):
     from sklearn.model_selection import StratifiedShuffleSplit
+
+    fn_original = os.path.join(path, 'nodes_metadata.csv')
+    fn_merge = os.path.join(path, 'nodes_metadata_merge.csv')
 
     ### stratified split (allowing for same fm in sample)
     Nold = graph.number_of_nodes()
-    Nnew = 100000
+    Nnew = 100000 # number of nodes in each sample
     n_splits = int(np.ceil(Nold / float(Nnew)))
 
     ### if already exist, return
-    total = len([fn for fn in os.listdir(path) if fn.endswith('.csv') and 'nodes_metadata' in fn])
-    if total == n_splits:
+    total = len([fn for fn in os.listdir(path) if fn.endswith('.csv') and fn.startswith('nodes_metadata_') and not fn.endswith('merge.csv')])
+    if os.path.exists(fn_merge):
+        df_merge = read_csv(fn_merge)
+
+    elif total == n_splits and not os.path.exists(fn_merge):
         printf('Merging all splits into one file...')
-        _merge_metadata_big(path, graph)
-        return
-    elif total == n_splits+1:
-        printf('Nothing to do; all your results already exist. Bye!')
-        return
+        df_merge = _merge_metadata_big(path, graph)
+    # elif os.path.exists(fn_original):
+    #     printf('Nothing to do; all your results already exist. Bye!')
+    #     return
+    elif total < n_splits:
+        ### All nodes and class value
+        X = np.array(list(graph.nodes())) # nodes
+        y = np.array([graph.node[n][graph.graph['label']] for n in X]) # classes
 
-    ### All nodes and class value
-    X = np.array(list(graph.nodes())) # nodes
-    y = np.array([graph.node[n][graph.graph['label']] for n in X]) # classes
+        ### Inferring the metadata for each split
+        split = 1
+        for N, nsplits in [(Nnew,n_splits-1), (Nold - ((n_splits-1) * Nnew) , 1)]:
+            sss = StratifiedShuffleSplit(n_splits=nsplits, test_size=N, random_state=0)
+            for train_index, test_index in sss.split(X, y):
+                printf('')
+                print('=============================')
+                print('Split #{} of {}'.format(split, n_splits))
+                print('- {} nodes ({}% of {})'.format(N, round(N*100. / float(Nold), 2), Nold))
+                nodes = X[test_index]
+                classes = y[test_index]
+                _do_metadata_big(graph, nodes, classes, path, split, num_cores=num_cores)
+                split += 1
 
-    ### Inferring the metadata for each split
-    sss = StratifiedShuffleSplit(n_splits=n_splits, test_size=Nnew, random_state=0)
-    split = 1
-    for train_index, test_index in sss.split(X, y):
-        printf('')
-        print('=============================')
-        print('Split #{} of {}'.format(split, n_splits))
-        print('- {} nodes ({}% of {})'.format(Nnew, round(Nnew*100. / float(Nold), 2), Nold))
-        nodes = X[test_index]
-        classes = y[test_index]
-        _do_metadata_big(graph, nodes, classes, path, split, num_cores=num_cores)
-        split += 1
+        del(sss)
+        del(X)
+        del(y)
 
-    ### merge into 1 file
-    _merge_metadata_big(path, graph)
+        ### merge into 1 file (only for cot and wtf)
+        df_merge = _merge_metadata_big(path, graph)
+
+    print('samples')
+    print(df_merge.shape)
+    print(df_merge.groupby('minority').size())
+
+    ### for indegree, outdegree and pagerank: main file
+    if original:
+
+        if os.path.exists(fn_original):
+            print('loading original...')
+            df_original = read_csv(fn_original)
+        else:
+            print('computing original...')
+            df_original = get_nodes_metadata(graph, num_cores=num_cores)
+            df_original.loc[:,'dataset'] = graph.graph['name'].lower()
+
+        print('original')
+        print(df_original.shape)
+        print(df_original.groupby('minority').size())
+
+        if df_merge.shape[0] != df_original.shape[0]:
+            print('different shapes')
+            return
+        else:
+            if df_merge.groupby('minority').size()[0] > df_original.groupby('minority').size()[0]:
+                nchanges = df_merge.groupby('minority').size()[0] - df_original.groupby('minority').size()[0]
+                tmp = df_merge.query('minority==1').copy()
+                idmin = tmp.indegree.min()
+                idmax = tmp.indegree.max()
+                odmin = tmp.indegree.min()
+                odmax = tmp.indegree.max()
+                counter = 0
+                for i, row in df_merge.query("minority == 0 & indegree >= @idmin & indegree <= @idmax & outdegree >= @odmin & outdegree <= @odmax").iterrows():
+                    df_merge.loc[i,'minority'] = 1
+                    counter += 1
+                    if counter == nchanges:
+                        break
+                print('samples')
+                print(df_merge.shape)
+                print(df_merge.groupby('minority').size())
+
+                if df_merge.groupby('minority').size()[0] == df_original.groupby('minority').size()[0]:
+                    save_csv(df_merge, fn_merge)
+                    print('perfect!')
+
+        print('updating...')
+        df_merge.sort_values('minority', ascending=True, inplace=True)
+        df_original.sort_values('minority', ascending=True, inplace=True)
+        df_original.loc[:, 'wtf'] = df_merge.loc[:, 'wtf']
+        df_original.loc[:, 'circle_of_trust'] = df_merge.loc[:, 'circle_of_trust']
+
+        save_csv(df_original, fn_original)
+
+
 
 def _merge_metadata_big(path, graph):
-    files = [os.path.join(path,fn) for fn in os.listdir(path) if fn.endswith('.csv') and 'nodes_metadata' in fn]
+    files = [os.path.join(path,fn) for fn in os.listdir(path) if fn.endswith('.csv') and fn.startswith('nodes_metadata_') and not fn.endswith('merge.csv')]
+    print('Merging {} files...'.format(len(files)))
 
     df = None
     for fn in files:
@@ -256,9 +335,9 @@ def _merge_metadata_big(path, graph):
         else:
             df = df.append(tmp, ignore_index=True)
 
-    fn = os.path.join(path, 'nodes_metadata.csv')
+    fn = os.path.join(path, 'nodes_metadata_merge.csv')
     save_csv(df, fn)
-    return
+    return df
 
 def _do_metadata_big(graph, nodes, classes, path, split, num_cores=1):
 
@@ -315,7 +394,7 @@ def _do_metadata_big(graph, nodes, classes, path, split, num_cores=1):
     fncpn = fn.replace(".csv", "_wtf.pickle")
     if os.path.exists(fncpn):
         print('loading...')
-        cot = read_pickle(fncpn)
+        wtf = read_pickle(fncpn)
     else:
         print('computing...')
         wtf = frequency_by_who_to_follow(A, cot_per_node=cot_per_node, p=0.85, top=10, num_cores=num_cores)
@@ -366,7 +445,7 @@ def load_all_datasets_node_metadata_fit(datasets, output):
             df = read_csv(fn)
             printf('loaded!')
         else:
-            fn = os.path.join(root, dataset, 'nodes_metadata_incomplete.csv')
+            fn = os.path.join(output, dataset, 'nodes_metadata_incomplete.csv')
             if os.path.exists(fn):
                 df = read_csv(fn)
                 printf('loaded!')
@@ -419,7 +498,7 @@ def load_all_datasets_node_metadata_empirical(datasets, root):
     save_csv(df_metadata, fna)
     return df_metadata
 
-def load_all_node_metadata_fit(datasets, models, output):
+def load_all_datasets_node_metadata_fit(datasets, models, output):
     fna = os.path.join(output, 'all_datasets_metadata_fit.csv')
     if os.path.exists(fna):
         return read_csv(fna)
