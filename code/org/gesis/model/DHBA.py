@@ -46,17 +46,23 @@ def directed_homophilic_barabasi_albert_graph(N, density, minority_fraction, h_M
     minority_fraction : float
         Fraction of minorities in the network
 
+    h_MM: float
+        Homophily (similarity) among majority nodes. Value between 0.0 to 1.0
+
     h_mm: float
         Homophily (similarity) among minority nodes. Value between 0.0 to 1.0
 
-    kmin_m : int
-        Number of edges to attach from a new node (minority) to existing nodes
-
     kmin_M : int
-        Number of edges to attach from a new node (majority) to existing nodes
+        Minimum number of edges to attach from a new node (majority) to existing nodes
 
-    h_MM: float
-        Homophily (similarity) among majority nodes. Value between 0.0 to 1.0
+    kmax_M : int
+        Maximum number of edges to attach from a new node (majority) to existing nodes
+
+    kmin_m : int
+        Minimum number of edges to attach from a new node (minority) to existing nodes
+
+    kmax_m : int
+        Maximum number of edges to attach from a new node (minority) to existing nodes
 
     gamma_m: float
         Exponent of power-law for outdegree distribution of minority nodes.
@@ -93,6 +99,7 @@ def directed_homophilic_barabasi_albert_graph(N, density, minority_fraction, h_M
     PA_START = INIT_E - int(round(PA_E / PA_ADD))
 
     if verbose:
+        print("N: {}".format(N))
         print("density: {}".format(density))
         print("EXPECTED_E: {}".format(EXPECTED_E))
         print("INIT_EDGES (y): {}".format(INIT_E))
@@ -285,8 +292,7 @@ def estimate_homophily_empirical(graph, fm=None, EMM=None, EMm=None, EmM=None, E
 
             if min_min + min_maj + maj_maj == 0:
                 # bipartite
-                pmm_emp = 0.000001
-                pMM_emp = 0.000001
+                raise NotImplementedError('This model does not support bipartite networks.')
             else:
                 pmm_emp = float(min_min) / (min_min + min_maj)
                 pMM_emp = float(maj_maj) / (maj_maj + maj_min)
@@ -311,15 +317,15 @@ def estimate_homophily_empirical(graph, fm=None, EMM=None, EMm=None, EmM=None, E
 ################################################################################
 
 if __name__ == '__main__':
-    graph, _ = directed_homophilic_barabasi_albert_graph(N=1000,
-                                                         density=0.001,
-                                                         minority_fraction=0.1,
-                                                         kmin_M=2,
-                                                         kmin_m=2,
-                                                         h_MM=0.5,
-                                                         h_mm=0.5,
-                                                         gamma_m=3.0,
-                                                         gamma_M=3.0)
+    graph = directed_homophilic_barabasi_albert_graph(N=1000,
+                                                      density=0.001,
+                                                      minority_fraction=0.1,
+                                                      kmin_M=2,
+                                                      kmin_m=2,
+                                                      h_MM=0.5,
+                                                      h_mm=0.5,
+                                                      gamma_m=3.0,
+                                                      gamma_M=3.0)
     print(nx.info(graph))
 
 

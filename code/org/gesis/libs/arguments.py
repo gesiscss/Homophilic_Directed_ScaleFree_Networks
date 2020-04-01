@@ -142,9 +142,8 @@ def init_batch_model_fit():
 
     parser.add_argument('-N', action='store',
                         dest='N',
-                        required=True,
                         type=int,
-                        default=200,
+                        default=None,
                         help='Number of nodes.',
                         )
 
@@ -206,8 +205,8 @@ def init_batch_model_fit():
     print('model .................. = ', results.model)
     print('dataset ................ = ', results.dataset)
     print('N ...................... = ', results.N)
-    print('kminM ................... = ', results.kminM)
-    print('kminm ................... = ', results.kminm)
+    print('kminM .................. = ', results.kminM)
+    print('kminm .................. = ', results.kminm)
     print('density ................ = ', results.density)
     print('epoch .................. = ', results.epoch)
     print('output ................. = ', results.output)

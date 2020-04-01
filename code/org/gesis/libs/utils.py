@@ -28,23 +28,19 @@ def get_minority_fraction(graph):
 def get_min_degree(graph):
     return min([d for n, d in graph.degree()])
 
-def fit_power_law(data, discrete=True, xmin=None):
+def fit_power_law(data, discrete=True):
+    return powerlaw.Fit(data,
+                        discrete=discrete,
+                        verbose=False)
+
+def fit_power_law_force(data, discrete=True, xmin=None, xmax=None):
     return powerlaw.Fit(data,
                         discrete=discrete,
                         xmin=xmin if xmin is not None else min(data),
-                        xmax=max(data),
+                        xmax=xmax if xmax is not None else max(data),
                         verbose=False)
 
 def fit_theoretical_power_law(nobs, exp, xmin=None, xmax=None, discrete=True):
-
-    # print()
-    # print(nobs)
-    # print(exp)
-    # print(xmin)
-    # print(xmax)
-    # print(discrete)
-
-
     if discrete:
         xmin = int(round(xmin)) if xmin is not None else xmin
         xmax = int(round(xmax)) if xmax is not None else xmax

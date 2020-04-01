@@ -73,28 +73,37 @@ class DirectedGraph(object):
         self.duration = time.time()
 
         if self.model == kDBA:
-            self.G,_ = DBA.directed_barabasi_albert_graph(N=self.N,
-                                                          kmin=self.kmin,
-                                                          density=self.density,
-                                                          minority_fraction=self.minority_fraction,
-                                                          gamma_m=self.gamma_m,
-                                                          gamma_M=self.gamma_M,
-                                                          seed=seed)
+            self.G = DBA.directed_barabasi_albert_graph(N=self.N,
+                                                        density=self.density,
+                                                        minority_fraction=self.minority_fraction,
+                                                        kmin_M=self.kmin_M,
+                                                        kmax_M=self.kmax_M,
+                                                        kmin_m=self.kmin_m,
+                                                        kmax_m=self.kmax_m,
+                                                        gamma_m=self.gamma_m,
+                                                        gamma_M=self.gamma_M,
+                                                        seed=seed)
         elif self.model == kDH:
-            self.G ,_ = DH.directed_homophilic_graph(N=self.N,
-                                                    kmin=self.kmin,
-                                                    density=self.density,
-                                                    minority_fraction=self.minority_fraction,
-                                                    h_mm = self.h_mm,
-                                                    h_MM = self.h_MM,
-                                                    gamma_m=self.gamma_m,
-                                                    gamma_M=self.gamma_M,
-                                                    seed=seed)
+            self.G = DH.directed_homophilic_graph(N=self.N,
+                                                  density=self.density,
+                                                  minority_fraction=self.minority_fraction,
+                                                  kmin_M=self.kmin_M,
+                                                  kmax_M=self.kmax_M,
+                                                  kmin_m=self.kmin_m,
+                                                  kmax_m=self.kmax_m,
+                                                  h_MM = self.h_MM,
+                                                  h_mm = self.h_mm,
+                                                  gamma_M=self.gamma_M,
+                                                  gamma_m=self.gamma_m,
+                                                  seed=seed)
         elif self.model == kDT:
             self.G,_ = DT.directed_triadic_graph(N=self.N,
-                                                 kmin=self.kmin,
                                                  density=self.density,
                                                  minority_fraction=self.minority_fraction,
+                                                 kmin_M=self.kmin_M,
+                                                 kmax_M=self.kmax_M,
+                                                 kmin_m=self.kmin_m,
+                                                 kmax_m=self.kmax_m,
                                                  gamma_m=self.gamma_m,
                                                  gamma_M=self.gamma_M,
                                                  triads_pdf=self.triads_pdf,
@@ -114,9 +123,12 @@ class DirectedGraph(object):
                                                                     seed=seed)
         elif self.model == kDHTBA:
             self.G,_ = DHTBA.directed_homophilic_triadic_barabasi_albert_graph(N=self.N,
-                                                                               kmin=self.kmin,
                                                                                density=self.density,
                                                                                minority_fraction=self.minority_fraction,
+                                                                               kmin_M=self.kmin_M,
+                                                                               kmax_M=self.kmax_M,
+                                                                               kmin_m=self.kmin_m,
+                                                                               kmax_m=self.kmax_m,
                                                                                h_mm=self.h_mm,
                                                                                h_MM=self.h_MM,
                                                                                gamma_m=self.gamma_m,
@@ -167,9 +179,9 @@ class DirectedGraph(object):
     def get_filename(self, prefix=None, epoch=None):
 
         if self.model == kDBA:
-            fn = None
+            fn = '<prefix><model>-N<N>-fm<fm>-d<d>-kminM<kminM>-kmaxM<kmaxM>-kminm<kminm>-kmaxm<kmaxm>-gM<gM>-gm<gm><ID>.gpickle'
         elif self.model == kDH:
-            fn = None
+            fn = '<prefix><model>-N<N>-fm<fm>-d<d>-kminM<kminM>-kmaxM<kmaxM>-kminm<kminm>-kmaxm<kmaxm>-hMM<hMM>-hmm<hmm>-gM<gM>-gm<gm><ID>.gpickle'
         elif self.model == kDT:
             fn = None
         elif self.model == kDHBA:

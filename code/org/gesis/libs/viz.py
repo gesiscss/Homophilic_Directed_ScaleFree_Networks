@@ -11,7 +11,7 @@ import numpy as np
 from org.gesis.libs.ranking import VALID_METRICS
 from org.gesis.libs.utils import gini
 from org.gesis.libs.utils import fit_power_law
-from org.gesis.libs.utils import fit_theoretical_power_law
+from org.gesis.libs.utils import fit_power_law_force
 from palettable.colorbrewer.diverging import BrBG_11
 from palettable.colorbrewer.diverging import BrBG_5
 
@@ -92,7 +92,7 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
 
     ### subplots
     colors = sns.color_palette("colorblind")
-    for col, dataset in enumerate(df_metadata_fit.dataset.unique()):
+    for col, dataset in enumerate(df_summary_empirical.dataset.unique()):
 
         axes[0, col].set_title(dataset)
         xye = {}
@@ -103,7 +103,7 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
             txt_emp = "Empirical:" + "\n" + r"$\gamma_{M}=$" + "<maj>" + "\n" + r"$\gamma_{m}=$" + "<min>"
             txt_fit = model + "\n" + r"$\gamma_{M}=$" + "<maj>" + "\n" + r"$\gamma_{m}=$" + "<min>"
 
-            for minority in df_metadata_fit.minority.unique():
+            for minority in sorted(df_metadata_fit.minority.unique()):
                 sum_emp = df_summary_empirical.query("dataset.str.lower()==@dataset.lower()").iloc[0]
 
                 data_emp = df_metadata_empirical.query("dataset.str.lower()==@dataset.lower() & minority==@minority")[metric].values.astype(np.float)
@@ -111,12 +111,12 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
 
                 ### Empirical:
                 label = '{} empirical'.format(labels[minority])
-                fit_emp = fit_power_law(data_emp, discrete=discrete, xmin=sum_emp['kminm' if minority else 'kminM'])
+                fit_emp = fit_power_law_force(data_emp, discrete=discrete, xmin=sum_emp['kminm' if minority else 'kminM'],  xmax=sum_emp['kmaxm' if minority else 'kmaxM'])
                 fit_emp.power_law.plot_pdf(ax=axes[row, col], linestyle='-', color=colors[minority], label=label)
 
                 ### Model:
                 label = '{} {}'.format(labels[minority], model)
-                fit_mod = fit_power_law(data_fit, discrete=discrete, xmin=2)
+                fit_mod = fit_power_law_force(data_fit, discrete=discrete)
                 fit_mod.power_law.plot_pdf(ax=axes[row, col], linestyle='--', color=colors[minority], label=label)
 
                 ### exponents:
@@ -125,23 +125,25 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
 
             ### Exponents
             if row == 0:
-                xye[metric] = {'aps': (25, 0.01), 'apsgender3': (40, 0.009), 'apsgender8': (41, 0.009), 'github': (200, 0.0017), 'pokec': (50, 0.008), 'wikipedia': (40, 0.015)}
-                xym[metric] = {'aps': (2, 0.0001), 'apsgender3': (2, 0.00001), 'apsgender8': (2, 0.00002), 'github': (3, 0.0000006), 'pokec': (2, 0.00001), 'wikipedia': (2, 0.00004)}
+                # indegree
+                xye[metric] = {'aps': (25, 0.018), 'apsgender3': (35, 0.02), 'apsgender8': (70, 0.011), 'github': (180, 0.0019), 'pokec': (170, 0.0001), 'wikipedia': (40, 0.015)}
+                xym[metric] = {'aps': (4, 0.00015), 'apsgender3': (3, 0.00004), 'apsgender8': (8, 0.00007), 'github': (2, 0.0000003), 'pokec': (1, 0.00000000005), 'wikipedia': (5, 0.00006)}
 
             else:
-                xye[metric] = {'aps': (11, 0.025), 'apsgender3': (155, 0.003), 'apsgender8': (150, 0.00013), 'github': (200, 0.0015), 'pokec': (25, 0.022), 'wikipedia': (40, 0.003)}
-                xym[metric] = {'aps': (2, 0.0001), 'apsgender3': (2, 0.000001), 'apsgender8': (2, 0.00000000002), 'github': (3, 0.00000006), 'pokec': (2, 0.0001), 'wikipedia': (2, 0.0000004)}
+                # outdegree
+                xye[metric] = {'aps': (22, 0.009), 'apsgender3': (35, 0.02), 'apsgender8': (75, 0.004), 'github': (155, 0.0007), 'pokec': (120, 0.0003), 'wikipedia': (19, 0.005)}
+                xym[metric] = {'aps': (4, 0.000003), 'apsgender3': (1.2, 0.00003), 'apsgender8': (4, 0.0000012), 'github': (1, 0.0000000095), 'pokec': (1, 0.000000001), 'wikipedia': (5, 0.000002)}
 
-            axes[row, col].text(s=txt_emp, x=xye[metric][dataset][0], y=xye[metric][dataset][1])
-            axes[row, col].text(s=txt_fit, x=xym[metric][dataset][0], y=xym[metric][dataset][1])
+            axes[row, col].text(s=txt_emp, x=xye[metric][dataset.lower()][0], y=xye[metric][dataset.lower()][1])
+            axes[row, col].text(s=txt_fit, x=xym[metric][dataset.lower()][0], y=xym[metric][dataset.lower()][1])
 
             ### y-label right
             if col == ncols - 1:
                 xt = axes[row, col].get_xticks()
                 yt = axes[row, col].get_yticks()
                 axes[row, col].text(s=metric,
-                                    x=max(xt) / 18,
-                                    y=yt[int(np.ceil(len(yt)/2.))], rotation=-90)
+                                    x=max(xt) / 37 if row == 0 else max(xt) / 14.5,
+                                    y=yt[int(np.ceil(len(yt)/2.))] if row == 0 else yt[int(np.ceil(len(yt)/1.99))] , rotation=-90) #1.8, 1.9
 
     ### legend
     width = 4*1.1
@@ -151,7 +153,7 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
                      bbox_to_anchor=(width/-1.8, 1.12, width, 0.2), mode='expand',
                      ncol=4, handletextpad=0.3, frameon=False)
 
-    ### ylabel
+    ### ylabel left
     ylabel = 'P(x)'
     row = int(axes.shape[0] / 2)
     col = 0
@@ -160,8 +162,8 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
     else:
         xt = axes[row, col].get_xticks()
         yt = axes[row, col].get_yticks()
-        axes[row, col].text(min(xt) * 5,
-                            max(yt) / 10,
+        axes[row, col].text(min(xt) * 10,
+                            max(yt) / 15,
                             ylabel, {'ha': 'center', 'va': 'center'}, rotation=90)
 
     ### xlabel
@@ -173,8 +175,8 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
     else:
         xt = axes[row, col].get_xticks()
         yt = axes[row, col].get_yticks()
-        axes[row, col].text(min(xt) * 3,
-                            min(yt) * 10,
+        axes[row, col].text(min(xt) * 110,
+                            min(yt) * 4.7,
                             xlabel, {'ha': 'center', 'va': 'center'}, rotation=0)
 
     ### space between subplots
@@ -413,14 +415,14 @@ def plot_vh_inequalities_fit(df_rank, group=False, fn=None):
 
     ### only main data points
     metrics = ['pagerank', 'wtf']
-    tmp = df_rank.query("rank==5 & kind in ['empirical','DHBA'] & metric in @metrics").copy()
+    tmp = df_rank.query("rank==5 & kind in ['empirical','DH','DBA','DHBA'] & metric in @metrics").copy()
     tmp.drop(columns=['rank', 'fmt'], inplace=True)
 
     if group:
         tmp = tmp.groupby(['dataset','kind','metric']).mean().reset_index()
 
     tmp.kind = tmp.kind.astype("category")
-    tmp.kind.cat.set_categories(['empirical','DHBA'], inplace=True)
+    tmp.kind.cat.set_categories(['empirical','DH','DBA','DHBA'], inplace=True)
     tmp.sort_values(['kind','dataset','metric'], inplace=True)
 
     ### main plot
@@ -436,9 +438,10 @@ def plot_vh_inequalities_fit(df_rank, group=False, fn=None):
 
         for row, metric in enumerate(tmp.metric.unique()):
 
+            ### y-label right
             if col == ncols-1:
                 axes[row, col].text(s=metric,
-                                    x=1.08 if not group else 1.06,
+                                    x=1.08 if not group else 1.04,
                                     y=(tmp.mae.max()/2.)+(len(metric)*0.005/2.), rotation=-90)
 
             for hue, kind in enumerate(tmp.kind.unique()):
@@ -448,13 +451,13 @@ def plot_vh_inequalities_fit(df_rank, group=False, fn=None):
     ### legend
     plt.legend()
 
-    ### ylabel
+    ### ylabel left
     ylabel = 'MAE of \nfraction of minorities in top-k%'
     if nrows % 2 != 0:
         axes[int(axes.shape[0]/2), 0].set_ylabel(ylabel)
     else:
-        axes[int(axes.shape[0] / 2), 0].text(0.16 if not group else 0.17,
-                                             0.26 if not group else 0.16,
+        axes[int(axes.shape[0] / 2), 0].text(0.16 if not group else 0.15,
+                                             0.26 if not group else 0.14,
                                              ylabel, {'ha': 'center', 'va': 'center'}, rotation=90)
 
     ### xlabel
