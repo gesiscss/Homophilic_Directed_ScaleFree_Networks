@@ -126,13 +126,13 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
             ### Exponents
             if row == 0:
                 # indegree
-                xye[metric] = {'aps': (25, 0.018), 'apsgender3': (35, 0.02), 'apsgender8': (70, 0.011), 'github': (180, 0.0019), 'pokec': (170, 0.0001), 'wikipedia': (40, 0.015)}
-                xym[metric] = {'aps': (4, 0.00015), 'apsgender3': (3, 0.00004), 'apsgender8': (8, 0.00007), 'github': (2, 0.0000003), 'pokec': (1, 0.00000000005), 'wikipedia': (5, 0.00006)}
+                xye[metric] = {'aps': (33, 0.015), 'apsgender3': (66, 0.025), 'apsgender8': (85, 0.006), 'github': (300, 0.0025), 'pokec': (375, 0.0001), 'wikipedia': (48, 0.013)}
+                xym[metric] = {'aps': (4, 0.00005), 'apsgender3': (6, 0.00007), 'apsgender8': (10.5, 0.00002), 'github': (7, 0.00000028), 'pokec': (7, 0.00000000005), 'wikipedia': (5, 0.00006)}
 
             else:
                 # outdegree
-                xye[metric] = {'aps': (22, 0.009), 'apsgender3': (35, 0.02), 'apsgender8': (75, 0.004), 'github': (155, 0.0007), 'pokec': (120, 0.0003), 'wikipedia': (19, 0.005)}
-                xym[metric] = {'aps': (4, 0.000003), 'apsgender3': (1.2, 0.00003), 'apsgender8': (4, 0.0000012), 'github': (1, 0.0000000095), 'pokec': (1, 0.000000001), 'wikipedia': (5, 0.000002)}
+                xye[metric] = {'aps': (20, 0.03), 'apsgender3': (230, 0.0032), 'apsgender8': (300, 0.0012), 'github': (160, 0.0015), 'pokec': (300, 0.0007), 'wikipedia': (122, 0.00081)}
+                xym[metric] = {'aps': (4, 0.00008), 'apsgender3': (11, 0.000004), 'apsgender8': (11, 0.0000005), 'github': (2, 0.0000000095), 'pokec': (5, 0.000000001), 'wikipedia': (5, 0.00000001)}
 
             axes[row, col].text(s=txt_emp, x=xye[metric][dataset.lower()][0], y=xye[metric][dataset.lower()][1])
             axes[row, col].text(s=txt_fit, x=xym[metric][dataset.lower()][0], y=xym[metric][dataset.lower()][1])
@@ -142,8 +142,8 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
                 xt = axes[row, col].get_xticks()
                 yt = axes[row, col].get_yticks()
                 axes[row, col].text(s=metric,
-                                    x=max(xt) / 37 if row == 0 else max(xt) / 14.5,
-                                    y=yt[int(np.ceil(len(yt)/2.))] if row == 0 else yt[int(np.ceil(len(yt)/1.99))] , rotation=-90) #1.8, 1.9
+                                    x=max(xt) / 27 if row == 0 else max(xt) / 43,
+                                    y=yt[int(np.ceil(len(yt)/2.))] if row == 0 else yt[int(np.ceil(len(yt)/2.5))] , rotation=-90) #1.8, 1.9
 
     ### legend
     width = 4*1.1
@@ -411,18 +411,23 @@ def plot_vh_inequalities_empirical(df_rank, fn=None):
         print('{} saved!'.format(fn))
 
 
-def plot_vh_inequalities_fit(df_rank, group=False, fn=None):
+def plot_vh_inequalities_fit(df_rank, group=False, all=True, fn=None):
+
+    if all:
+        kind = ['empirical','DH','DBA','DHBA']
+    else:
+        kind = ['empirical', 'DHBA']
 
     ### only main data points
     metrics = ['pagerank', 'wtf']
-    tmp = df_rank.query("rank==5 & kind in ['empirical','DH','DBA','DHBA'] & metric in @metrics").copy()
+    tmp = df_rank.query("rank==5 & kind in @kind & metric in @metrics").copy()
     tmp.drop(columns=['rank', 'fmt'], inplace=True)
 
     if group:
         tmp = tmp.groupby(['dataset','kind','metric']).mean().reset_index()
 
     tmp.kind = tmp.kind.astype("category")
-    tmp.kind.cat.set_categories(['empirical','DH','DBA','DHBA'], inplace=True)
+    tmp.kind.cat.set_categories(kind, inplace=True)
     tmp.sort_values(['kind','dataset','metric'], inplace=True)
 
     ### main plot
