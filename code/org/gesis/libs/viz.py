@@ -60,14 +60,37 @@ def unlatexfyme(text):
 ############################################################################################################
 
 def plot_simple_network(G):
+    '''
+    grouping nodes: https://stackoverflow.com/questions/55750436/group-nodes-together-in-networkx
+    :param G:
+    :return:
+    '''
     plt.close()
     pos = nx.circular_layout(G) #kamada_kawai_layout(G)
+    colors = [n[1][G.graph['class']] for n in G.nodes(data=True)]
+
+    ### grouping nodes hack
+    angs = np.linspace(0, 2 * np.pi, 1 + len(set(colors)))
+    repos = []
+    rad = 2.0  # radius of circle
+    for ea in angs:
+        if ea > 0:
+            repos.append(np.array([rad * np.cos(ea), rad * np.sin(ea)]))
+
+    for ea in pos.keys():
+        if G.node[ea]['minority'] :
+            posx = 0
+        else:
+            posx = 1
+        pos[ea] += repos[posx]
+
+    ### drawing network
     nx.draw(G,
             pos=pos,
             node_size=[G.degree(n)*10 for n in G.nodes()],
             node_shape='s',
             alpha=1,
-            node_color=[n[1][G.graph['class']] for n in G.nodes(data=True)],
+            node_color=colors,
             with_labels=False)
     plt.show()
     plt.close()
@@ -524,13 +547,16 @@ def plot_vh_inequalities_synthetic(df_rank, metric='pagerank', sym=True, fn=None
             # plt.legend(loc='center left', title='h', bbox_to_anchor=(1, 0.5))
         else:
             axes[0, col].set_title("fm={}".format(fm))
+
+            ### ylabel (right)
             for row, hmm in enumerate(tmp.hmm.unique()):
                 if col == ncols - 1:
                     s = 'hmm={}'.format(hmm)
                     axes[row, col].text(s=s,
-                                        x=tmp.gini.max() + 0.035,
-                                        y=(tmp.mae.max() / 2.) + (len(s) * 0.0065 / 2.), rotation=-90)
+                                        x=tmp.gini.max() + 0.04,
+                                        y=(df_rank.mae.max() / 2.) + 0.03 , rotation=-90)
 
+                ### scatter plot
                 for hue, hMM in enumerate(tmp.hMM.unique()):
                     data = tmp.query("fm==@fm & hmm==@hmm & hMM==@hMM").copy()
                     axes[row, col].scatter(x=data.gini.values, y=data.mae.values, label=hMM, color=colors[hue], marker='x')
@@ -540,15 +566,15 @@ def plot_vh_inequalities_synthetic(df_rank, metric='pagerank', sym=True, fn=None
                              ncol=tmp.hMM.nunique(), handletextpad=0.05, frameon=False)
             #axes[0, 2].legend(loc='lower left', title='hMM'
 
-    ### ylabel
+    ### ylabel (left)
     ylabel = 'MAE of \nfraction of minorities in top-k%'
     row = int(nrows / 2)
-    ax = axes[row,0] if not sym else axes[0]
+    ax = axes[0] if sym else axes[row,0]
     if nrows % 2 != 0:
         ax.set_ylabel(ylabel)
     else:
-        ax.text(0.64 if not sym else 100,
-                0.65 if not sym else 0.65,
+        ax.text(0.64 if sym else 0.44 , #100,
+                0.65 if sym else df_rank.mae.max() + 0.025, #0.65,
                 ylabel, {'ha': 'center', 'va': 'center'}, rotation=90)
 
     ### xlabel

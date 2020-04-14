@@ -46,7 +46,7 @@ class DirectedGraph(object):
     '''
     Cosntructor
     '''
-    def __init__(self, model, N, density, minority_fraction, kmin_M, kmax_M, kmin_m, kmax_m, gamma_M, gamma_m, h_MM, h_mm, triads_ratio, triads_pdf):
+    def __init__(self, model, N, density, minority_fraction, kmin_M, kmin_m, gamma_M, gamma_m, h_MM, h_mm, triads_ratio, triads_pdf, kmax_M=None, kmax_m=None):
         self.model = model
         self.G = None
         self.N = N
@@ -195,11 +195,11 @@ class DirectedGraph(object):
         fn = fn.replace('<fm>', str(round(self.minority_fraction,1)))
         fn = fn.replace('<d>', str(round(self.density, 5)))
         fn = fn.replace('<kminM>', str(self.kmin_M))
-        fn = fn.replace('<kmaxM>', str(self.kmax_M))
+        fn = fn.replace('<kmaxM>', str('' if self.kmax_M is None else self.kmax_M))
         fn = fn.replace('<kminm>', str(self.kmin_m))
-        fn = fn.replace('<kmaxm>', str(self.kmax_m))
+        fn = fn.replace('<kmaxm>', str('' if self.kmax_m is None else self.kmax_m))
         fn = fn.replace('<hMM>', str(round(self.h_MM,1)))
-        fn = fn.replace('<hmm>', str(round(self.h_mm)))
+        fn = fn.replace('<hmm>', str(round(self.h_mm,1)))
         fn = fn.replace('<gM>', str(round(self.gamma_M)))
         fn = fn.replace('<gm>', str(round(self.gamma_m)))
         fn = fn.replace('<ID>', '-ID{}'.format(epoch) if epoch is not None else '')
@@ -214,15 +214,15 @@ class DirectedGraph(object):
     def validate_params(params):
 
         if params.model == kDBA:
-            r = ['N','kmin','density','minority_fraction','gamma_m','gamma_M']
+            r = ['N','kmin_m', 'kmin_M','density','minority_fraction','gamma_m','gamma_M']
         elif params.model == kDH:
-            r = ['N', 'kmin', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
+            r = ['N', 'kmin_m', 'kmin_M', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
         elif params.model == kDT:
-            r = ['N', 'kmin', 'density', 'minority_fraction', 'gamma_m', 'gamma_M', 'triads_pdf']
+            r = ['N', 'kmin_m', 'kmin_M', 'density', 'minority_fraction', 'gamma_m', 'gamma_M', 'triads_pdf']
         elif params.model == kDHBA:
-            r = ['N', 'kmin', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
+            r = ['N', 'kmin_m', 'kmin_M', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M']
         elif params.model == kDHTBA:
-            r = ['N', 'kmin', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M', 'triads_ratio', 'triads_pdf']
+            r = ['N', 'kmin_m', 'kmin_M', 'density', 'minority_fraction', 'h_mm', 'h_MM', 'gamma_m', 'gamma_M', 'triads_ratio', 'triads_pdf']
 
         g = 0
         w = 0

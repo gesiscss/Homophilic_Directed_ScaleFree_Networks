@@ -19,14 +19,6 @@ def init_batch_generate_network():
                         help='Number of nodes.',
                         )
 
-    parser.add_argument('-kmin', action='store',
-                        dest='kmin',
-                        required=True,
-                        type=int,
-                        default=2,
-                        help='Minimum degree.',
-                        )
-
     parser.add_argument('-density', action='store',
                         dest='density',
                         required=True,
@@ -40,6 +32,32 @@ def init_batch_generate_network():
                         type=float,
                         default=0.5,
                         help='Minority fraction.')
+
+    parser.add_argument('-kminM', action='store',
+                        dest='kmin_M',
+                        required=True,
+                        type=int,
+                        default=2,
+                        help='Minimum degree Majority.')
+
+    parser.add_argument('-kmaxM', action='store',
+                        dest='kmax_M',
+                        type=int,
+                        default=None,
+                        help='Maximum degree Majority.')
+
+    parser.add_argument('-kminm', action='store',
+                        dest='kmin_m',
+                        required=True,
+                        type=int,
+                        default=2,
+                        help='Minimum degree minority.')
+
+    parser.add_argument('-kmaxm', action='store',
+                        dest='kmax_m',
+                        type=int,
+                        default=None,
+                        help='Maximum degree minority.')
 
     parser.add_argument('-gm', action='store',
                         dest='gamma_m',
@@ -58,11 +76,13 @@ def init_batch_generate_network():
     parser.add_argument('-hmm', action='store',
                         dest='h_mm',
                         type=float,
+                        required=True,
                         help='Homophily within minorities.')
 
     parser.add_argument('-hMM', action='store',
                         dest='h_MM',
                         type=float,
+                        default=None,
                         help='Homophily within majorities.')
 
     parser.add_argument('-tr', action='store',
@@ -92,6 +112,7 @@ def init_batch_generate_network():
     parser.add_argument('-output', action='store',
                         dest='output',
                         default=None,
+                        required=True,
                         help='Directory where to store the networkx file.')
 
     parser.add_argument('--version', action='version', version='%(prog)s 1.0')
@@ -106,13 +127,16 @@ def init_batch_generate_network():
     print("===================================================")
     print('model .................. = ', results.model)
     print('N ...................... = ', results.N)
-    print('kmin ................... = ', results.kmin)
     print('density ................ = ', results.density)
     print('minority_fraction ...... = ', results.minority_fraction)
-    print('h_mm ................... = ', results.h_mm)
+    print('kmin_M ................. = ', results.kmin_M)
+    print('kmax_M ................. = ', results.kmax_M)
+    print('kmin_m ................. = ', results.kmin_m)
+    print('kmax_m ................. = ', results.kmax_m)
     print('h_MM ................... = ', results.h_MM)
-    print('gamma_m ................ = ', results.gamma_m)
+    print('h_mm ................... = ', results.h_mm)
     print('gamma_M ................ = ', results.gamma_M)
+    print('gamma_m ................ = ', results.gamma_m)
     print('triads_ratio ........... = ', results.triads_ratio)
     print('triads_pdf ............. = ', results.triads_pdf)
     print('epoch .................. = ', results.epoch)

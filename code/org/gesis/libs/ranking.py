@@ -40,8 +40,15 @@ def _rank(rank_dict):
         y_list.append(float(count_min) / (count_min + count_maj))
     return x_list, y_list
 
-@deprecated
 def _rank_function_graph(G, metric, minority=None):
+    '''
+    Use this function for small networks.
+    Otherwise use _rank_function_matrix
+    :param G:
+    :param metric:
+    :param minority:
+    :return:
+    '''
     if metric == 'degree':
         rank = dict(G.degree())
     elif metric == 'indegree':
@@ -146,23 +153,33 @@ def rank_vh_inequalities_synthetic(model, output):
     if os.path.exists(fntr):
         return read_csv(fntr)
 
-    cols = ['kind', 'metric', 'N', 'kmin', 'fm', 'hMM', 'hmm', 'gm', 'gM', 'gini', 'mae', 'epoch', 'rank', 'fmt']
+    cols = ['kind', 'metric', 'N', 'density', 'fm', 'kminM', 'kmaxM', 'kminm', 'kmaxm', 'hMM', 'hmm', 'gm', 'gM', 'gini', 'mae', 'epoch', 'rank', 'fmt']
     df_rank = pd.DataFrame(columns=cols)
 
     path = os.path.join(output, 'synthetic', model)
     for fn in os.listdir(path):
         if fn.endswith('.csv'):
-            #DHBA-N2000-kmin2-fm0.5-hMM1.0-hmm1.0-ID7.csv
+            # DHBA-N2000-fm0.1-d0.001-kminM2-kmaxM-kminm2-kmaxm-hMM0.0-hmm0-gM2-gm2-ID0.csv
             fn = os.path.join(path, fn)
             metadata = pd.read_csv(fn, index_col=0)
-            N = int(fn.split("-N")[-1].split('-kmin')[0])
-            kmin = int(fn.split("-kmin")[-1].split('-fm')[0])
-            fm = float(fn.split("-fm")[-1].split('-hMM')[0])
-            hMM = float(fn.split("-hMM")[-1].split('-hmm')[0])
-            hmm = float(fn.split("-hmm")[-1].split('-ID')[0])
-            epoch = int(fn.split('-ID')[-1].replace('.csv', ''))
-            gM = 2.5  # @todo: take this from filename
-            gm = 2.5 # @todo: take this from filename
+            N = eval(fn.split("-N")[-1].split('-fm')[0])
+            fm = eval(fn.split("-fm")[-1].split('-d')[0])
+            density = eval(fn.split("-d")[-1].split('-kminM')[0])
+            kminM = eval(fn.split("-kminM")[-1].split('-kmaxM')[0])
+            try:
+                kmaxM = eval(fn.split("-kmaxM")[-1].split('-kminm')[0])
+            except:
+                kmaxM = None
+            kminm = eval(fn.split("-kminm")[-1].split('-kmaxm')[0])
+            try:
+                kmaxm = eval(fn.split("-kmaxm")[-1].split('-hMM')[0])
+            except:
+                kmaxm = None
+            hMM = eval(fn.split("-hMM")[-1].split('-hmm')[0])
+            hmm = eval(fn.split("-hmm")[-1].split('-gM')[0])
+            gM = eval(fn.split("-gM")[-1].split('-gm')[0])
+            gm = eval(fn.split("-gm")[-1].split('-ID')[0])
+            epoch = eval(fn.split('-ID')[-1].replace('.csv', ''))
 
             for metric in VALID_METRICS:
                 if metric not in metadata.columns:
@@ -176,8 +193,12 @@ def rank_vh_inequalities_synthetic(model, output):
                     df_rank = df_rank.append(pd.DataFrame({'kind': model,
                                                            'metric': metric,
                                                            'N': N,
-                                                           'kmin': kmin,
+                                                           'density': density,
                                                            'fm': fm,
+                                                           'kminM': kminM,
+                                                           'kmaxM': kmaxM,
+                                                           'kminm': kminm,
+                                                           'kmaxm': kmaxm,
                                                            'hMM': hMM,
                                                            'hmm': hmm,
                                                            'gM': gM,
