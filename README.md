@@ -6,8 +6,6 @@ Vertical and Horizontal Inequalities in Homophilic Directed ScaleFree Networks
 | :---: | :---: | :---: |
 | a | Example: Visibility of minorities based on PageRank | - |
 | b | Example: Network generative model | - |
-| c | Paper: Datasets' descriptions | - |
+| c | Paper: Datasets | - |
 | d | Paper: Plots | - |
 | e | Supplementary material | - |
-
-
