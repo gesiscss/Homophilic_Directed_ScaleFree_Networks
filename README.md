@@ -1,5 +1,5 @@
-# Homophilic Directed ScaleFree Networks
-Vertical and Horizontal Inequalities in Homophilic Directed ScaleFree Networks
+# Homophilic & Directed scale-free networks
+Inequality and Inequity in Network-based Ranking and Recommendation Algorithms
 
 ## Notebooks
 | # | Description | Launch in Binder * |
