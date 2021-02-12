@@ -9,22 +9,19 @@ import argparse
 ################################################################
 # Local dependencies
 ################################################################
-from org.gesis.lib import homophily
+
 from org.gesis.lib import io
 from org.gesis.lib import graph
-from org.gesis.model.DBAH import DBAH
-from org.gesis.model.DBA import DBA
+from org.gesis.lib import homophily
 from org.gesis.model.DH import DH
+from org.gesis.model.DPA import DPA
+from org.gesis.model.DPAH import DPAH
 from org.gesis.model.Random import Random
-from org.gesis.model.DUniform import DUniform
-from org.gesis.model.SBM import SBM
-from org.gesis.model.Null import Null
-from org.gesis.model.DBAH2 import DBAH2
 
 ################################################################
 # Constants
 ################################################################
-MODELS = ["DBA","DH","DBAH","Random","DUniform","SBM","Null",'DBAH2']
+MODELS = ["DPA","DH","DPAH","Random"]
 
 ################################################################
 # Main
@@ -64,13 +61,13 @@ def run(model, N, fm, d, ploM, plom, hMM, hmm, epoch, output):
     
 def create_graph(model, N, fm, d, plo_M, plo_m, hMM, hmm, verbose, seed):
 
-    if model == 'DBAH':
-        g = DBAH(N=N, fm=fm, d=d, 
+    if model == 'DPAH':
+        g = DPAH(N=N, fm=fm, d=d, 
             plo_M=plo_M, plo_m=plo_m, 
             h_MM=hMM, h_mm=hmm, 
             verbose=verbose, seed=seed)
-    elif model == 'DBA':
-        g = DBA(N=N, fm=fm, d=d, 
+    elif model == 'DPA':
+        g = DPA(N=N, fm=fm, d=d, 
             plo_M=plo_M, plo_m=plo_m, 
             verbose=verbose, seed=seed)
     elif model == 'DH':
@@ -78,24 +75,8 @@ def create_graph(model, N, fm, d, plo_M, plo_m, hMM, hmm, verbose, seed):
             plo_M=plo_M, plo_m=plo_m, 
             h_MM=hMM, h_mm=hmm,
             verbose=verbose, seed=seed)
-    elif model == 'DUniform':
-        g = DUniform(N=N, fm=fm, d=d, 
-            plo_M=plo_M, plo_m=plo_m, 
-            verbose=verbose, seed=seed)
     elif model == 'Random':
         g = Random(N=N, fm=fm, d=d, 
-            verbose=verbose, seed=seed)
-    elif model == 'SBM':
-        g = SBM(N=N, fm=fm,
-            h_MM=hMM, h_mm=hmm,
-            verbose=verbose, seed=seed)
-    elif model == 'Null':
-        g = Null(N=N, fm=fm,
-            verbose=verbose, seed=seed)
-    elif model == 'DBAH2':
-        g = DBAH2(N=N, fm=fm, d=d, 
-            plo_M=plo_M, plo_m=plo_m, 
-            h_MM=hMM, h_mm=hmm, 
             verbose=verbose, seed=seed)
     else:
         raise Exception("model does not exist.")
@@ -109,8 +90,8 @@ def get_filename(model, N, fm, d, plo_M, plo_m, hMM=None, hmm=None, epoch=None):
                                              '' if model in ['SBM','Null'] else '-d{}'.format(round(d,5)), 
                                              '' if model in ['Random','SBM','Null'] else '-ploM{}'.format(round(plo_M,1)), 
                                              '' if model in ['Random','SBM','Null'] else '-plom{}'.format(round(plo_m,1)), 
-                                             '' if model in ['DBA','DUniform','Null'] or hMM is None else '-hMM{}'.format(hMM),
-                                             '' if model in ['DBA','DUniform','Null'] or hmm is None else '-hmm{}'.format(hmm),
+                                             '' if model in ['DPA','DUniform','Null'] or hMM is None else '-hMM{}'.format(hMM),
+                                             '' if model in ['DPA','DUniform','Null'] or hmm is None else '-hmm{}'.format(hmm),
                                              '' if epoch is None else '-ID{}'.format(epoch),
                                              )
 
@@ -120,7 +101,7 @@ def get_filename(model, N, fm, d, plo_M, plo_m, hMM=None, hmm=None, epoch=None):
 ################################################################
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--model", help="network generation model (DBA, DH, DBAH)", type=str, required=True)
+    parser.add_argument("--model", help="network generation model (DPA, DH, DPAH)", type=str, required=True)
     parser.add_argument("--N", help="number of nodes", type=int, required=True)
     parser.add_argument("--fm", help="fraction of minorities", type=float, required=True)
     parser.add_argument("--d", help="density", type=float, default=None)

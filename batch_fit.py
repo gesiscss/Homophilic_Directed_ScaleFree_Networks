@@ -12,19 +12,16 @@ from joblib import delayed
 ################################################################
 # Local dependencies
 ################################################################
-from org.gesis.model.DBAH2 import DBAH2
-from org.gesis.model.DBAH import DBAH
-from org.gesis.model.DBA import DBA
-from org.gesis.model.DH import DH
-from org.gesis.model.SBM import SBM
-from org.gesis.model.Random import Random
-from org.gesis.model.Null import Null
 from org.gesis.lib import io
+from org.gesis.model.DH import DH
+from org.gesis.model.DBA import DBA
+from org.gesis.model.DBAH import DBAH
+from org.gesis.model.Random import Random
 
 ################################################################
 # Constants
 ################################################################
-DATASETS = ['aps','apsgender3','apsgender8','blogs','github','hate','pokec','seventh','wikipedia']
+DATASETS = ['aps','blogs','hate','seventh','wikipedia']
 
 ################################################################
 # Main
@@ -91,20 +88,8 @@ def _create_graph(model, N, fm, d, plo_M, plo_m, hMM, hmm, verbose, seed):
             plo_M=plo_M, plo_m=plo_m, 
             h_MM=hMM, h_mm=hmm,
             verbose=verbose, seed=seed)
-    elif model == 'SBM':
-        g = SBM(N=N, fm=fm,
-            h_MM=hMM, h_mm=hmm,
-            verbose=verbose, seed=seed)
     elif model == 'Random':
         g = Random(N=N, fm=fm, d=d, 
-            verbose=verbose, seed=seed)
-    elif model == 'Null':
-        g = Null(N=N, fm=fm,
-            verbose=verbose, seed=seed)
-    elif model == 'DBAH2':
-        g = DBAH2(N=N, fm=fm, d=d, 
-            plo_M=plo_M, plo_m=plo_m, 
-            h_MM=hMM, h_mm=hmm, 
             verbose=verbose, seed=seed)
     else:
         raise Exception("model does not exist.")

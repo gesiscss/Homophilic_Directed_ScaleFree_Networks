@@ -3,8 +3,8 @@
 ################################################################
 import os
 import sys
-import argparse
 import time
+import argparse
 
 ################################################################
 # Local dependencies
@@ -14,7 +14,7 @@ from org.gesis.lib import rank
 ################################################################
 # Constants
 ################################################################
-DATASETS = ['aps','apsgender3','apsgender8','blogs','github','hate','pokec','seventh','wikipedia']
+DATASETS = ['aps','blogs','hate','seventh','wikipedia']
 
 ################################################################
 # Main

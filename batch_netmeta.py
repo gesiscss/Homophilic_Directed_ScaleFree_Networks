@@ -3,20 +3,20 @@
 ################################################################
 import os
 import sys
-import argparse
 import time
+import argparse
 
 ################################################################
 # Local dependencies
 ################################################################
-from org.gesis.lib import homophily
 from org.gesis.lib import io
 from org.gesis.lib import graph
+from org.gesis.lib import homophily
 
 ################################################################
 # Constants
 ################################################################
-DATASETS = ['aps','apsgender3','apsgender8','blogs','github','hate','pokec','seventh','wikipedia']
+DATASETS = ['aps','blogs','hate','seventh','wikipedia']
 
 ################################################################
 # Main
