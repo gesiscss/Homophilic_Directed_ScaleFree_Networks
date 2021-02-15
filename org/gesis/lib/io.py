@@ -1,13 +1,30 @@
+################################################################################
+# System dependencies
+################################################################################
 import os
 import pickle
 import pandas as pd
 import networkx as nx
 
+################################################################################
+# Local dependencies
+################################################################################
 from org.gesis.lib import utils
+
+################################################################################
+# Functions
+################################################################################
 
 def create_subfolders(fn):
     path = os.path.dirname(fn)
     os.makedirs(path, exist_ok = True)
+
+def get_files(path, prefix=None, ext=None):
+    if prefix is not None and ext is not None:
+        return [fn for fn in os.listdir(path) if fn.endswith(ext) and fn.startswith(prefix)]
+    elif prefix is not None:
+        return [fn for fn in os.listdir(path) if fn.startswith(prefix)]
+    return [fn for fn in os.listdir(path) if fn.endswith(ext)]
 
 def load_gpickle(fn):
     g = None
@@ -72,10 +89,4 @@ def save_text(txt, fn):
         return False
     return True
 
-def get_files(path, prefix=None, ext=None):
-    if prefix is not None and ext is not None:
-        return [fn for fn in os.listdir(path) if fn.endswith(ext) and fn.startswith(prefix)]
-    elif prefix is not None:
-        return [fn for fn in os.listdir(path) if fn.startswith(prefix)]
-    return [fn for fn in os.listdir(path) if fn.endswith(ext)]
     

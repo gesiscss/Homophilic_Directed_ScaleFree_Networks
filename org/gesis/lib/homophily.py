@@ -1,20 +1,20 @@
-################################################################
-# Systems' dependencies
-################################################################
+################################################################################
+# System dependencies
+################################################################################
 import numpy as np
 from joblib import Parallel
 from joblib import delayed
 from itertools import product
 
-################################################################
+################################################################################
 # Local dependencies
-################################################################
-from org.gesis.model.DBAH import DBAH
+################################################################################
+from org.gesis.model.DPAH import DPAH
 from org.gesis.lib import graph
 
-################################################################
+################################################################################
 # Functions
-################################################################
+################################################################################
 
 def get_metadata(g, steps, njobs=1, verbose=False, seed=None):
     '''
@@ -50,7 +50,7 @@ def get_metadata(g, steps, njobs=1, verbose=False, seed=None):
     
 def infer_homophily_MLE(N, fm, d, plo_M, plo_m, EMM, EMm, EmM, Emm, steps=0.05, njobs=1, verbose=False, seed=None):
     '''
-    Infers the homophily value of a network given the DBA-Homophily model.
+    Infers the homophily value of a network given the DPAH model.
     '''
     h = np.arange(0.0, 1.0+steps, steps)
     hval = []
@@ -82,7 +82,7 @@ def _infer_homophily_MLE(N, fm, d, plo_M, plo_m, EMM, EMm, EmM, Emm, hMM, hmm, v
     hMM = round(hMM,2)
     hmm = round(hmm,2)
     
-    g = DBAH(N=N, fm=fm, d=d, plo_M=plo_M, plo_m=plo_m, h_MM=hMM, h_mm=hmm, verbose=False, seed=seed)
+    g = DPAH(N=N, fm=fm, d=d, plo_M=plo_M, plo_m=plo_m, h_MM=hMM, h_mm=hmm, verbose=False, seed=seed)
     eMM, eMm, emM, emm = graph.get_edge_type_counts(g, True)
 
     diff = abs(eMM-EMM)+abs(eMm-EMm)+abs(emM-EmM)+abs(emm-Emm)

@@ -1,3 +1,6 @@
+################################################################################
+# System dependencies
+################################################################################
 import os
 import powerlaw
 import numpy as np
@@ -8,19 +11,23 @@ from joblib import Parallel
 from collections import Counter
 from fast_pagerank import pagerank_power
 
+################################################################################
+# Local dependencies
+################################################################################
 from org.gesis.lib import io
 from org.gesis.lib import utils
 
-##############################################################
+################################################################################
 # Constants
-##############################################################
+################################################################################
 BIGNET = 11000
 EXT = '.gpickle'
 TOPK = 10
 
-##############################################################
-# Functions
-##############################################################
+################################################################################
+# I/O
+################################################################################
+
 def get_graph(path, dataset, fn=None):
     if fn is None:
         fn = io.get_files(os.path.join(path,dataset), prefix="{}".format(dataset), ext=EXT)
@@ -30,8 +37,29 @@ def get_graph(path, dataset, fn=None):
     print(fn)
     return io.load_gpickle(fn)
 
-def get_graph_metadata(graph, attribute):
+def get_outdegrees_fit(path):
+    files = io.get_files(path, ext=EXT)
+    degrees = []
+    for fn in files:
+        od = get_outdegree(io.load_gpickle(os.path.join(path,fn)))
+        degrees.extend(od)
+        del(od)
+    return degrees
+    
+def get_indegrees_fit(path):
+    files = io.get_files(path, ext=EXT)
+    degrees = []
+    for fn in files:
+        od = get_outdegree(io.load_gpickle(os.path.join(path,fn)))
+        degrees.extend(od)
+        del(od)
+    return degrees
 
+################################################################################
+# Properties
+################################################################################
+
+def get_graph_metadata(graph, attribute):
     if attribute in graph.graph:
         return graph.graph[attribute]
     return None
@@ -61,24 +89,6 @@ def get_outdegree(g):
 
 def get_indegree(g):
     return [d for n,d in g.in_degree()]
-
-def get_outdegrees_fit(path):
-    files = io.get_files(path, ext=EXT)
-    degrees = []
-    for fn in files:
-        od = get_outdegree(io.load_gpickle(os.path.join(path,fn)))
-        degrees.extend(od)
-        del(od)
-    return degrees
-    
-def get_indegrees_fit(path):
-    files = io.get_files(path, ext=EXT)
-    degrees = []
-    for fn in files:
-        od = get_outdegree(io.load_gpickle(os.path.join(path,fn)))
-        degrees.extend(od)
-        del(od)
-    return degrees
         
 def get_node_metadata_as_dataframe(g, njobs=1):
     cols = ['node','minority','indegree','outdegree','pagerank','wtf']
@@ -98,6 +108,10 @@ def get_node_metadata_as_dataframe(g, njobs=1):
                         'pagerank':pagerank,
                         'wtf':wtf,
                         }, columns=cols)
+
+################################################################################
+# Power-law
+################################################################################
 
 def fit_power_law(data, discrete=True):
     return powerlaw.Fit(data,
@@ -121,7 +135,6 @@ def fit_theoretical_power_law(nobs, exp, xmin=None, xmax=None, discrete=True):
     simulated_data = theoretical_distribution.generate_random(nobs)
     return powerlaw.Fit(simulated_data, verbose=False)
 
-
 def get_outdegree_powerlaw_exponents(graph):
     x = np.array([d for n, d in graph.out_degree() if graph.node[n][graph.graph['label']] == 0])
     fitM = fit_power_law(x)
@@ -141,9 +154,9 @@ def get_indegree_powerlaw_exponents(graph):
     return fitM, fitm
 
 
-##############################################################
+################################################################################
 # Who-To-Follow
-##############################################################
+################################################################################
 
 def _ppr(node_index, A, p, top):
     pp = np.zeros(A.shape[0])
@@ -187,6 +200,7 @@ def who_to_follow_rank(A, njobs=1):
     if A.shape[0] < BIGNET:
         return wtf_small(A, njobs)
     else:
+        # TODO: implement optimal (or faster) solution for big net
         return wtf_small(A, njobs)
         
 def wtf_small(A, njobs):

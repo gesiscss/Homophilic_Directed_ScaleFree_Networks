@@ -18,7 +18,7 @@ GROUPS = ['M', 'm']
 # Functions
 ################################################################
 
-def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
+def DPAH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
     '''
     Generates a Directed Barabasi-Albert Homophilic network.
     - param N: number of nodes
@@ -38,7 +38,7 @@ def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
 
     # 2. Init Directed Graph
     G = nx.DiGraph()
-    G.graph = {'name':'D-Homophily', 'label':CLASS, 'groups': GROUPS}
+    G.graph = {'name':'DPAH', 'label':CLASS, 'groups': GROUPS}
     G.add_nodes_from([(n, {CLASS:l}) for n,l in zip(*[nodes,labels])])
     
     # 3. Init edges and indegrees
@@ -66,7 +66,9 @@ def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
         print('')
         
     # 5. Generative process
+    tries = 0
     while G.number_of_edges() < E:
+        tries += 1
         source = _pick_source(N, activity)
         ns = nodes[source]
         target = _pick_target(source, N, labels, indegrees, outdegrees, homophily)
@@ -75,12 +77,21 @@ def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
         if not G.has_edge(ns, nt):
             G.add_edge(ns, nt)
             indegrees[target] += 1
-
+            outdegrees[source] += 1
+            tries = 0
+            
         if verbose:
             ls = labels[source]
             lt = labels[target]
             print("{}->{} ({}{}): {}".format(ns, nt, 'm' if ls else 'M', 'm' if lt else 'M', G.number_of_edges()))
-    
+        
+        if tries > G.number_of_nodes():
+            # it does not find any more new connections
+            print("\nEdge density ({}) might differ from {}. N{} fm{} seed{} hMM{} hmm{}\n".format(round(nx.density(G),5), 
+                                                                                                round(d,5),N,fm,seed,
+                                                                                                h_MM,h_mm))
+            break
+            
     duration = time.time() - start_time
     if verbose:
         print()
@@ -127,7 +138,7 @@ def _pick_target(source, N, labels, indegrees, outdegrees, homophily):
     The target node must have out_degree > 0 (the older the node in the network, the more likely to get more links)
     '''
     targets = [n for n in np.arange(N) if n!=source and (outdegrees[n]>0 if outdegrees.sum()>20 else True)]
-    probs = np.array([ homophily[labels[source],labels[n]] for n in targets])
+    probs = np.array([ homophily[labels[source],labels[n]] * (indegrees[n]+1) for n in targets])
     probs /= probs.sum()
     return np.random.choice(a=targets,size=1,replace=True,p=probs)[0]
 
@@ -137,12 +148,12 @@ def _pick_target(source, N, labels, indegrees, outdegrees, homophily):
 
 if __name__ == "__main__":
     
-    G = DH(N=1000, 
-           fm=0.5, 
-           d=0.01, 
-           plo_M=2.5, 
-           plo_m=2.5, 
-           h_MM=0.5, 
-           h_mm=0.5, 
-           verbose=True)
+    G = DPAH(N=1000, 
+             fm=0.5, 
+             d=0.01, 
+             plo_M=2.5, 
+             plo_m=2.5, 
+             h_MM=0.5, 
+             h_mm=0.5, 
+             verbose=True)
     

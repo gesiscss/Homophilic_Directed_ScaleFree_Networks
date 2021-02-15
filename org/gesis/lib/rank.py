@@ -1,38 +1,27 @@
+################################################################################
+# System dependencies
+################################################################################
 import os
 import sys
 import numpy as np
 import pandas as pd
+import multiprocessing
+from joblib import delayed
+from joblib import Parallel
+from org.gesis.lib import io
+from org.gesis.lib import utils
 from collections import defaultdict
 from sklearn.metrics import mean_absolute_error
-from org.gesis.lib import utils
-from org.gesis.lib import io
-from joblib import Parallel
-from joblib import delayed
-import multiprocessing
 
+################################################################################
+# Constants
+################################################################################
 PERCENTAGE_RANGE = np.append([5], np.arange(10, 100 + 10, 10)).astype(np.float)
-VALID_METRICS = ['indegree','outdegree','pagerank','wtf'] #'circle_of_trust'
+VALID_METRICS = ['indegree','outdegree','pagerank','wtf'] 
 
-
-# def get_fraction_minorities(df_metadata):
-#     cols = ['kind', 'metric', 'rank', 'fmt', 'epoch']
-#     df_rank = pd.DataFrame(columns=cols)
-    
-#     metric = 'pagerank'
-
-#     for epoch in df_metadata.epoch.unique():
-#         if epoch is None:
-#             tmp = df_metadata.query("kind=='empirical'").copy()
-#         else:
-#             tmp = df_metadata.query("epoch==@epoch").copy()
-#         (rank, fmt), fm = _rank_function_matrix(tmp, metric)
-#         df_rank = df_rank.append(pd.DataFrame({'kind':tmp.kind.unique()[0],
-#                                                'metric':metric,
-#                                                'rank':rank,
-#                                                'fmt':fmt,
-#                                                'epoch':epoch}, columns=cols), ignore_index=True)
-#     df_rank.loc[:,'rank'] = df_rank.loc[:,'rank'].astype(int)
-#     return df_rank
+################################################################################
+# Functions
+################################################################################
 
 def _rank(rank_dict):
     x_list = []
@@ -90,16 +79,16 @@ def _rank_function_matrix(df, metric):
 
 def _fm_function_matrix_rank(df, metric):
     
-    sorted_rnk = sorted(df[metric].unique(),reverse=True)
-    #rank = [round(percentage / 100.,2) for percentage in PERCENTAGE_RANGE]
+    # from larger values to smaller values
+    sorted_rnk = sorted(df[metric].unique(),reverse=True) 
     total = len(sorted_rnk)
     fmts = []
     ranks = []
     
     for rank in PERCENTAGE_RANGE:
-        k = round(rank/100.,2)
-        t = int(round(k*total))
-        topkrnk = sorted_rnk[0:t]
+        k = round(rank/100.,2)    # k%
+        t = int(round(k*total))   # No. of unique ranks in top-k
+        topkrnk = sorted_rnk[0:t] # first top-k ranks (list)
         topnodes = df.query("{} in @topkrnk".format(metric))
         
         if topnodes.shape[0]==0:
@@ -113,16 +102,16 @@ def _fm_function_matrix_rank(df, metric):
 
 def _gini_function_matrix_rank(df, metric):
     
-    sorted_rnk = sorted(df[metric].unique(),reverse=True)
-    #rank = [round(percentage / 100.,2) for percentage in PERCENTAGE_RANGE]
+    # from smallest values to largest values
+    sorted_rnk = sorted(df[metric].unique(),reverse=True) 
     total = len(sorted_rnk)
     ginis = []
     ranks = []
     
     for rank in PERCENTAGE_RANGE:
-        k = round(rank/100.,2)
-        t = int(round(k*total))
-        topkrnk = sorted_rnk[0:t]
+        k = round(rank/100.,2)    # k%
+        t = int(round(k*total))   # No. of unique ranks in top-k
+        topkrnk = sorted_rnk[0:t] # first top-k ranks (list)
         values = df.query("{} in @topkrnk".format(metric))[metric].astype(np.float).values
         
         if values.shape[0]==0:
@@ -145,7 +134,7 @@ def _horizontal_inequalities_parallel(path, dataset, fn):
         
     if epoch is None and dataset is not None:
         # empirical
-        fn_final = fn.replace("metadata.csv","rank.csv")
+        fn_final = fn.replace(".csv","_rank.csv")
     else:
         # fit & synthetic
         fn_final = fn.replace(".csv","_rank.csv")
@@ -200,75 +189,12 @@ def horizontal_inequalities_parallel(path, dataset=None):
 
     ### If it does not exist, it generates it from node metadata
     files = [fn for fn in os.listdir(os.path.join(path,dataset) if dataset is not None else path) 
-             if fn.endswith(".csv") and not fn.endswith("_rank.csv") and not fn.endswith("_netmeta.csv")
-             and (fn == "nodes_metadata.csv" or '-ID' in fn )]
+             if fn.endswith(".csv") and not fn.endswith("_rank.csv") and not fn.endswith("_netmeta.csv")]
+             #and (fn == "nodes_metadata.csv" or '-ID' in fn )]
     
     n_jobs = multiprocessing.cpu_count()
     print(n_jobs, len(files))
     results = Parallel(n_jobs=n_jobs)(delayed(_horizontal_inequalities_parallel)(path, dataset, fn) for fn in files)
     print("{} done | {} already done".format(sum(results), len(results)-sum(results)))
     
-    
-# def horizontal_inequalities(path, dataset=None):
-    
-#     ### If it does not exist, it generates it from node metadata
-#     files = [fn for fn in os.listdir(os.path.join(path,dataset) if dataset is not None else path) 
-#              if fn.endswith(".csv") and not fn.endswith("_rank.csv") and not fn.endswith("_netmeta.csv")
-#              and (fn == "nodes_metadata.csv" or '-ID' in fn )]
-    
-#     for fn in files:
-#         fn = os.path.join(path,dataset,fn) if dataset is not None else os.path.join(path,fn)
-        
-#         epoch = 0 if len(files)==1 else fn.split("-ID")[-1].split(".csv")[0]
-        
-#         if epoch == 0 and dataset is not None:
-#             fn_final = fn.replace("metadata.csv","rank.csv")
-#             #os.path.join(path, dataset, "rank_empirical_{}.csv".format(dataset.upper()))
-#         else:
-#             fn_final = fn.replace(".csv","_rank.csv")
-            
-#         if os.path.exists(fn_final):
-#             print("{} already exists.".format(fn_final))
-#             continue
-        
-#         cols = ['kind', 'metric', 'dataset', 'epoch', 'rank', 'fmt', 'gt', 'gini', 'mae', 'me']
-#         df_rank = pd.DataFrame(columns=cols)
-#         kind = path.split("/")[-2 if path.endswith("/") else -1]
-#         fn = os.path.join(path, dataset, fn) if dataset is not None else os.path.join(path, fn)
-#         df_metadata = io.read_csv(fn)
-        
-#         for metric in VALID_METRICS:
-#             if metric not in df_metadata:
-#                 continue
-                
-#             rank, gt = _gini_function_matrix_rank(df_metadata, metric)
-#             (rank, fmt), minority_fraction = _rank_function_matrix(df_metadata, metric)
-#             g = utils.gini(df_metadata[metric].astype(np.float).values)     # global vertical ineq.
-#             mae = mean_absolute_error([minority_fraction] * len(fmt), fmt)  # global horizontal ineq. using mae
-#             me = utils.mean_error(fmt, [minority_fraction] * len(fmt))      # global horizontal ineq. using me
-            
-#             #rank: rank position 5, 10, 20, ..., 100
-#             #fmt : fraction of minorities in top-k
-#             #gt  : gini coefficient of rank distribution up to top-k rank
-#             #gini: gini coefficient of rank distribution (from 5% to 100% rank) (gt when rank=100)
-#             #mae : mean absolute error of fmt curve (from 5% to 100% rank)
-#             #me  : mean error of fmt curve (from 5% to 100% rank)
-            
-#             tmp = pd.DataFrame({'kind': kind,
-#                                 'metric': metric,
-#                                 'dataset': dataset,
-#                                 'epoch':epoch,
-#                                 'rank': rank,
-#                                 'fmt': fmt,
-#                                 'gt': gt,
-#                                 'gini':g,
-#                                 'mae':mae,
-#                                 'me':me,
-#                                }, columns=cols)
-
-#             df_rank = df_rank[cols].append(tmp[cols], ignore_index=True)
-        
-#         io.save_csv(df_rank, fn_final)
-        
-#     return 
     

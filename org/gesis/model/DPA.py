@@ -18,15 +18,13 @@ GROUPS = ['M', 'm']
 # Functions
 ################################################################
 
-def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
+def DPA(N, fm, d, plo_M, plo_m, verbose=False, seed=None):
     '''
-    Generates a Directed Barabasi-Albert Homophilic network.
+    Generates a Directed Barabasi-Albert network.
     - param N: number of nodes
     - param fm: fraction of minorities
     - param plo_M: power-law outdegree distribution majority class
     - param plo_m: power-law outdegree distribution minority class
-    - h_MM: homophily among majorities
-    - h_mm: homophily among minorities
     - verbose: if True prints every steps in detail.
     - seed: randommness seed for reproducibility
     '''
@@ -38,7 +36,7 @@ def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
 
     # 2. Init Directed Graph
     G = nx.DiGraph()
-    G.graph = {'name':'D-Homophily', 'label':CLASS, 'groups': GROUPS}
+    G.graph = {'name':'DPA', 'label':CLASS, 'groups': GROUPS}
     G.add_nodes_from([(n, {CLASS:l}) for n,l in zip(*[nodes,labels])])
     
     # 3. Init edges and indegrees
@@ -52,8 +50,6 @@ def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
     activity = np.append(act_M, act_m)
     activity /= activity.sum()
     
-    # 5. Init homophily
-    homophily = np.array([[h_MM, 1-h_MM],[1-h_mm, h_mm]])
     
     # INIT SUMMARY
     if verbose:
@@ -61,15 +57,13 @@ def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
         print("N={} (M={}, m={})".format(N, NM, Nm))
         print("E={} (d={})".format(E, d))
         print("Activity Power-Law outdegree: M={}, m={}".format(plo_M, plo_m))
-        print("Homophily: h_MM={}, h_mm={}".format(h_MM, h_mm))
-        print(homophily)
         print('')
         
     # 5. Generative process
     while G.number_of_edges() < E:
         source = _pick_source(N, activity)
         ns = nodes[source]
-        target = _pick_target(source, N, labels, indegrees, outdegrees, homophily)
+        target = _pick_target(source, N, labels, indegrees, outdegrees)
         nt = nodes[target]
         
         if not G.has_edge(ns, nt):
@@ -121,13 +115,13 @@ def _pick_source(N,activity):
     '''
     return np.random.choice(a=np.arange(N),size=1,replace=True,p=activity)[0]
     
-def _pick_target(source, N, labels, indegrees, outdegrees, homophily):
+def _pick_target(source, N, labels, indegrees, outdegrees):
     '''
-    Given a (index) source node, it returns 1 (index) target node based on homophily and pref. attachment (indegree).
+    Given a (index) source node, it returns 1 (index) target node based on pref. attachment (indegree).
     The target node must have out_degree > 0 (the older the node in the network, the more likely to get more links)
     '''
     targets = [n for n in np.arange(N) if n!=source and (outdegrees[n]>0 if outdegrees.sum()>20 else True)]
-    probs = np.array([ homophily[labels[source],labels[n]] for n in targets])
+    probs = np.array([ indegrees[n]+1 for n in targets])
     probs /= probs.sum()
     return np.random.choice(a=targets,size=1,replace=True,p=probs)[0]
 
@@ -137,12 +131,10 @@ def _pick_target(source, N, labels, indegrees, outdegrees, homophily):
 
 if __name__ == "__main__":
     
-    G = DH(N=1000, 
-           fm=0.5, 
-           d=0.01, 
-           plo_M=2.5, 
-           plo_m=2.5, 
-           h_MM=0.5, 
-           h_mm=0.5, 
-           verbose=True)
+    G = DPA(N=1000, 
+            fm=0.5, 
+            d=0.01, 
+            plo_M=2.5, 
+            plo_m=2.5,
+            verbose=True)
     

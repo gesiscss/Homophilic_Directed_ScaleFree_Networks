@@ -1,14 +1,78 @@
-import warnings
-warnings.simplefilter(action='ignore', category=FutureWarning)
-
+################################################################################
+# System dependencies
+################################################################################            
 import os
 import numpy as np
+from scipy import stats
 import statsmodels.api as sm
 from statsmodels.iolib.summary2 import summary_col
 
+################################################################################
+# Local dependencies
+################################################################################
 from org.gesis.lib import io
 
 
+################################################################################
+# Datasets summary
+################################################################################
+
+def all_datasets_summary_as_latex(df_summary, output=None):
+    df_latex_summary = df_summary.pivot_table(columns='dataset', aggfunc=lambda x: ' '.join(str(v) for v in x))
+    columns = ['N', 'class', 'min', 'maj', 'fm', 'd', 'plo_M','plo_m', 'EMM', 'EMm', 'EmM', 'Emm', 'hMM', 'hmm']
+    df_latex_summary = df_latex_summary.reindex(columns)
+    
+    if output is not None:
+        fn = os.path.join(output, 'summary_datasets.tex')
+        df_latex_summary.to_latex(fn, float_format=lambda x: '%.5f' % x)
+        print('{} saved!'.format(fn))
+        
+    return df_latex_summary
+
+################################################################################
+# Loading Data
+################################################################################
+
+def load_graphs(data, datasets):
+    graphs = {}
+    
+    for dataset in datasets:
+        fn = [fn for fn in os.listdir(os.path.join(data,dataset)) if fn.endswith(".gpickle")]
+        graphs[dataset] = io.load_gpickle(os.path.join(data,dataset,fn))
+        
+    return graphs
+     
+def load_graph_fnc(data, dataset):
+    fn = [fn for fn in os.listdir(os.path.join(data,dataset)) if fn.endswith(".gpickle")][0]
+    return io.load_gpickle(os.path.join(data,dataset,fn))
+    
+def _load_model_metadata(files, path, model, dataset=None):
+    df = None
+    cols = None
+    
+    for fn in files:
+        fn = os.path.join(path, model, fn) if dataset is None else os.path.join(path, model, dataset, fn)
+        tmp = io.read_csv(fn)
+
+        if dataset is not None:
+            if 'dataset' not in tmp.columns:
+                tmp.loc[:,'dataset'] = dataset
+
+        if 'kind' not in tmp.columns:
+            tmp.loc[:,'kind'] = model
+
+        try:
+            tmp.drop(['circle_of_trust'], axis=1, inplace=True)
+        except: pass
+        
+        if df is None:
+            df = tmp.copy()
+            cols = df.columns
+        else:
+            df = df.append(tmp[cols], ignore_index=True)
+            
+    return df
+                        
 def _load_metadata(path, kind):
     
     if kind not in ['network','nodes']:
@@ -18,42 +82,45 @@ def _load_metadata(path, kind):
     if os.path.exists(fn_final):
         return io.read_csv(fn_final)
     
-    if '/fit' in path:
+    #if '/fit' in path or '/synthetic':
+    if path.endswith("/fit") or path.endswith("/synthetic"):
         models = [d for d in os.listdir(path)]
     else:
         models = ['']
     
+    cols = None
+    df = None
+    
     for model in models:
-        datasets = [d for d in os.listdir(os.path.join(path,model)) if not d.endswith(".csv")]
+        
+        # synthetic (all models)
+        if '/synthetic' in path:
+            files = [fn for fn in io.get_files(os.path.join(path, model), ext='.csv')
+                    if not fn.endswith("_rank.csv") and not fn.endswith("_netmeta.csv")]
+            print(len(files))
+            tmp = _load_model_metadata(files, path, model)
+        
+        else:
+            # empirical and fit (all models and datasets)
+            datasets = [d for d in os.listdir(os.path.join(path,model)) if not d.endswith(".csv")]
 
-        df = None
-        cols = None
+            for dataset in datasets:
+                files = io.get_files(os.path.join(path, model, dataset), prefix=kind, ext='_metadata.csv')
 
-        for dataset in datasets:
-            files = io.get_files(os.path.join(path, model, dataset), prefix=kind, ext='_metadata.csv')
+                if len(files) == 0 and '/fit' in path:
+                    files = [fn for fn in io.get_files(os.path.join(path, model, dataset), ext='.csv')
+                            if not fn.endswith("_rank.csv") and not fn.endswith("_netmeta.csv")]
 
-            if len(files) == 0 and '/fit' in path:
-                files = [fn for fn in io.get_files(os.path.join(path, model, dataset), ext='.csv')
-                        if not fn.endswith("_rank.csv") and not fn.endswith("_netmeta.csv")]
-
-
-            for fn in files:
-                fn = os.path.join(path, model, dataset, fn)
-
-                tmp = io.read_csv(fn)
-                if 'dataset' not in tmp.columns:
-                    tmp.loc[:,'dataset'] = dataset
-
-                if df is None:
-                    df = tmp.copy()
-                    cols = df.columns
-                    try:
-                        cols = cols.drop('circle_of_trust')
-                    except: pass
-                else:
-                    df = df.append(tmp[cols], ignore_index=True)
+                tmp = _load_model_metatada(files, path, model, dataset)
             
-    io.save_csv(df, fn_final)
+        if df is None:
+            df = tmp.copy()
+            cols = df.columns
+        else:
+            df = df.append(tmp[cols], ignore_index=True)
+            
+    #io.save_csv(df, fn_final)
+    print(fn_final)
     return df
     
 def load_network_metadata(path):
@@ -61,88 +128,6 @@ def load_network_metadata(path):
 
 def load_node_metadata(path):
     return _load_metadata(path, 'nodes')
-
-
-def _sort_cast_ranking_df(df):
-    #,kind,metric,N,dir,
-    #gini,mae,fmt,gt,fm,d,ploM,plom,hMM,hmm,efmr,aefmr,
-    #epoch,rank,qae,qe
-    
-    ### casting to float
-    cflo = ['fm','d','hMM','hmm','ploM','plom','fmt','gt','efmt','aefmt','gini','mae','me']
-    df[cflo] = df[cflo].astype(np.float)
-    
-    ### casting to int
-    if df['epoch'].isnull().any():
-        df.loc[:,'epoch'] = -1
-        
-    cint = ['N','rank','epoch','qae','qe']    
-    df[cint] = df[cint].astype(int)
-
-    ### sorting columns
-    cols = ['dataset','kind','metric','N','fm','d','ploM','plom','hMM','hmm','epoch',
-            'rank','fmt','gt','efmt','qe','aefmt','qae','dir',
-            'gini','mae','me']
-    
-    return df.loc[:,cols]
-
-
-
-
-
-def get_quadrant_error(row, beta):
-    mid = 0.0
-    error = 'efmt'
-    
-    # abs(fmt) over-estimated
-    if row[error] > (mid+beta):
-        return 1 if row['gt'] >= 0.5 else 6
-    
-    # abs(fmt) under-estimated
-    if row[error] < (mid-beta):
-        return 3 if row['gt'] >= 0.5 else 4
-    
-    # abs(fmt) fair
-    if row[error] >= (mid-beta) and row['aefmt'] <= (mid+beta):
-        return 2 if row['gt'] >= 0.5 else 5
-
-    return 0
-
-def get_quadrant_absolute_error(row):
-    mid = 0.5
-    error = 'aefmt'
-    
-    # abs(fmt) over-estimated
-    if row[error] >= (mid):
-        return 1 if row['gt'] >= 0.5 else 4
-    
-    # abs(fmt) under-estimated
-    if row[error] < (mid):
-        return 2 if row['gt'] >= 0.5 else 3
-    
-    return 0
-
-
-def update_quadrants(df, beta=0.05):
-    
-    # error (deviation) 
-    df.loc[:,'efmt'] = df.apply(lambda row: row['fmt']-row['fm'], axis=1) #pred-true: (+) over-estimated (-) under-estimated
-
-    # absolute error (absolute deviation) 
-    df.loc[:,'aefmt'] = df.apply(lambda row: abs(row['efmt']), axis=1)
-
-    # direction (over/under representation of minorities)
-    df.loc[:,'dir'] = df.apply(lambda row: '+' if row['efmt'] > (0+beta) 
-                                           else '-' if row['efmt'] < (0-beta)
-                                           else '=', axis=1)
-
-    # quadrant (using absoulte error)
-    df.loc[:,'qae'] = df.apply(lambda row: get_quadrant_absolute_error(row), axis=1)
-
-    # quadrant (using error)
-    df.loc[:,'qe'] = df.apply(lambda row: get_quadrant_error(row, beta), axis=1)
-    
-    return df
 
 def _get_netmeta_from_fn(attribute, fn):
     #DBAH-N2000-fm0.1-d0.0015-ploM3.0-plom3.0-hMM0.0-hmm0.0-ID9_rank.csv
@@ -163,7 +148,7 @@ def _get_netmeta_from_fn(attribute, fn):
     if attribute in ['ploM','plom'] and model in ["Random","SBM","Null"]:
         return None
 
-    if attribute in ['hMM','hmm'] and model in ["DBA","DUniform","Random","Null"]:
+    if attribute in ['hMM','hmm'] and model in ["DPA","DUniform","Random","Null"]:
         return 0.5
     
     if attribute == 'epoch':
@@ -184,40 +169,41 @@ def load_rank(path, metadata=None, smooth=0.05):
 
     fn_final = os.path.join(path,'all_datasets_rank.csv')
     if os.path.exists(fn_final):
-        return io.read_csv(fn_final)
+        #return io.read_csv(fn_final)
+        df = io.read_csv(fn_final)
+    else:
+        datasets = [d for d in os.listdir(path) if not d.endswith(".csv")]
 
-    datasets = [d for d in os.listdir(path) if not d.endswith(".csv")]
-    
-    df = None
-    cols = None
-    cols_netmeta = ['N','fm','hmm', 'hMM', 'plo_M', 'plo_m', 'd']
-    
-    for dataset in datasets:
-        
-        if dataset.lower() in ['pokec','github']:
-            continue
-            
-        files = [fn for fn in os.listdir(os.path.join(path, dataset)) if fn.endswith(".csv") 
-                 and (fn.startswith("rank_") or fn.endswith("_rank.csv"))]
-        
-        for fn in files:
-            fn = os.path.join(path, dataset, fn)
-            tmp = io.read_csv(fn)
-            if 'dataset' not in tmp.columns:
-                tmp.loc[:,'dataset'] = dataset
-            tmp = tmp.query("metric!='circle_of_trust'")
+        df = None
+        cols = None
+        cols_netmeta = ['N','fm','hmm', 'hMM', 'plo_M', 'plo_m', 'd']
 
-            for cnm in cols_netmeta:
-                if cnm not in tmp and metadata is not None:
-                    tmp.loc[:,cnm.replace("_","")] = metadata.query("dataset.str.lower()==@dataset")[cnm].iloc[0]
-                elif cnm not in tmp and metadata is None:
-                    tmp.loc[:,cnm.replace("_","")] = _get_netmeta_from_fn(cnm.replace("_",""), fn.split("/")[-1])
-                    
-            if df is None:
-                df = tmp.copy()
-                cols = df.columns
-            else:
-                df = df.append(tmp[cols], ignore_index=True)
+        for dataset in datasets:
+
+            if dataset.lower() in ['pokec','github']:
+                continue
+
+            files = [fn for fn in os.listdir(os.path.join(path, dataset)) if fn.endswith(".csv") 
+                     and (fn.startswith("rank_") or fn.endswith("_rank.csv"))]
+
+            for fn in files:
+                fn = os.path.join(path, dataset, fn)
+                tmp = io.read_csv(fn)
+                if 'dataset' not in tmp.columns:
+                    tmp.loc[:,'dataset'] = dataset
+                tmp = tmp.query("metric!='circle_of_trust'")
+
+                for cnm in cols_netmeta:
+                    if cnm not in tmp and metadata is not None:
+                        tmp.loc[:,cnm.replace("_","")] = metadata.query("dataset.str.lower()==@dataset")[cnm].iloc[0]
+                    elif cnm not in tmp and metadata is None:
+                        tmp.loc[:,cnm.replace("_","")] = _get_netmeta_from_fn(cnm.replace("_",""), fn.split("/")[-1])
+
+                if df is None:
+                    df = tmp.copy()
+                    cols = df.columns
+                else:
+                    df = df.append(tmp[cols], ignore_index=True)
 
     ### quadrants
     df = update_quadrants(df, smooth)
@@ -225,7 +211,8 @@ def load_rank(path, metadata=None, smooth=0.05):
     ### sorting columns and casting
     df = _sort_cast_ranking_df(df)
     
-    io.save_csv(df, fn_final)
+    if not os.path.exists(fn_final):
+        io.save_csv(df, fn_final)
     return df
 
 
@@ -246,55 +233,61 @@ def load_rank_all_models(path, models, smooth=0.05):
     
     return df_rank_fit
     
-
-def load_rank_synthetic_all_models(path, models, smooth=0.05):
+def load_rank_synthetic_all_models(path, models, smooth=0.05, update=False):
     df = None
     
     for model in models:
-        tmp = load_rank_synthetic(os.path.join(path,model), smooth)
+        tmp = _load_rank_synthetic(os.path.join(path,model), smooth, update)
         if df is None:
             df = tmp.copy()
         else:
             df = df.append(tmp, ignore_index=True)
-
+    
     return df
             
-def load_rank_synthetic(path, smooth=0.05):
+def _load_rank_synthetic(path, smooth=0.05, update=False):
     fn_final = os.path.join(path,'all_networks_rank.csv')
+    
     if os.path.exists(fn_final):
-        return io.read_csv(fn_final)
-    
-    df = None
-    cols = None
-    
-    files = [fn for fn in os.listdir(os.path.join(path)) if fn.endswith(".csv") 
-             and (fn.startswith("rank_") or fn.endswith("_rank.csv"))]
+        df = io.read_csv(fn_final)
+    else:
+        df = None
+        cols = None
 
-    for fn in files:
-        fn = os.path.join(path, fn)
-        tmp = io.read_csv(fn)
-        tmp = tmp.query("metric!='circle_of_trust'")
-        tmp.drop(columns=["dataset"], inplace=True)
-        
-        for c in ['N', 'fm', 'd', 'ploM', 'plom', 'hMM', 'hmm', 'epoch']:
-            tmp.loc[:,c] = _get_netmeta_from_fn(c, fn)
-        
-        if df is None:
-            df = tmp.copy()
-            cols = df.columns
-        else:
-            df = df.append(tmp[cols], ignore_index=True)
+        files = [fn for fn in os.listdir(os.path.join(path)) if fn.endswith(".csv") 
+                 and (fn.startswith("rank_") or fn.endswith("_rank.csv"))]
 
-    ### quadrants
-    df = update_quadrants(df, smooth)
-    
-    ### sorting columns and casting
-    df = _sort_cast_ranking_df(df)
-    
-    ### save and return
-    io.save_csv(df, fn_final)
+        for fn in files:
+            fn = os.path.join(path, fn)
+            tmp = io.read_csv(fn)
+            tmp = tmp.query("metric!='circle_of_trust'")
+            tmp.drop(columns=["dataset"], inplace=True)
+
+            for c in ['N', 'fm', 'd', 'ploM', 'plom', 'hMM', 'hmm', 'epoch']:
+                tmp.loc[:,c] = _get_netmeta_from_fn(c, fn)
+
+            if df is None:
+                df = tmp.copy()
+                cols = df.columns
+            else:
+                df = df.append(tmp[cols], ignore_index=True)
+
+    # update (or not) quadrants
+    if update:
+        ### quadrants
+        df = update_quadrants(df, smooth)
+
+        ### sorting columns and casting
+        df = _sort_cast_ranking_df(df)
+
+        ### save
+        io.save_csv(df, fn_final)
+            
     return df
 
+################################################################################
+# Special Handlers
+################################################################################
 
 def best_fit(df_fit, df_empirical, datasets=None, models=None, vtype='mae'):
     ### best model 
@@ -318,33 +311,144 @@ def best_fit(df_fit, df_empirical, datasets=None, models=None, vtype='mae'):
     idx = tmp_fit.groupby(['metric','dataset']).apply(lambda row:row['dif'].argmin())
     tmp_fit = tmp_fit.loc[idx, :]
     return tmp_fit
+
+def only_new_cases(df):
+    tmp = df.query("kind in ['Random','DPAH']").copy()
+    tmp.loc[:,'kind'] = tmp.apply(lambda row: 'DPAH2' if (row.ploM==2 and row.kind=='DPAH') else 'DPAH3' if (row.ploM==3 and row.kind=='DPAH') else row.kind, axis=1)
+    tmp.loc[:,'kind'] = tmp.apply(lambda row: 'Random8' if (row.d==0.0008 and row.kind=='Random') else 'Random15' if (row.d==0.0015 and row.kind=='Random') else row.kind, axis=1)
+    models = tmp.kind.unique().tolist()
+    markers = ["*",".","x","v"]
+    return tmp, models, markers
+
+def remove_extra_synthetic(df):
+    return df.query("(ploM==3 & kind!='Random') | (kind=='Random'&d==0.0015)")
     
-def OLS_prepare_data(df, model, grouped=False):
-    data = df.query("kind == @model & metric in ['pagerank','wtf']").copy()
+def get_quadrant_error(row, beta=0.05, herror='efmt', verror='gt'):
+    mid = 0.0
+    
+    ### 9 regions
+    # abs(fmt) over-estimated
+    if row[herror] > (mid+beta):
+        return 3 if row[verror] >= 0.6 else 9 if row[verror] < 0.3 else 6
+    
+    # abs(fmt) under-estimated
+    if row[herror] < (mid-beta):
+        return 1 if row[verror] >= 0.6 else 7 if row[verror] < 0.3 else 4
+    
+    # abs(fmt) fair
+    if row[herror] >= (mid-beta) and row[herror] <= (mid+beta):
+        return 2 if row[verror] >= 0.6 else 8 if row[verror] < 0.3 else 5
+
+    return 0
+
+def get_quadrant_absolute_error(row, herror='aefmt', verror='gt'):
+    mid = 0.5
+    
+    ### 6 regions (dont confuse with 6 regions from get_quadrant_error)###
+    # abs(fmt) over-estimated
+    if row[herror] >= (mid):
+        return 2 if row[verror] >= 0.6 else 6 if row[verror] < 0.3 else 4
+    
+    # abs(fmt) under-estimated
+    if row[herror] < (mid):
+        return 1 if row[verror] >= 0.6 else 5 if row[verror] < 0.3 else 3
+    
+    return 0
+
+def update_quadrants(df, beta=0.05):
+    
+    # error (deviation) 
+    df.loc[:,'efmt'] = df.apply(lambda row: row['fmt']-row['fm'], axis=1) #pred-true: (+) over-estimated (-) under-estimated
+
+    # absolute error (absolute deviation) 
+    df.loc[:,'aefmt'] = df.apply(lambda row: abs(row['efmt']), axis=1)
+
+    # direction (over/under representation of minorities)
+    df.loc[:,'dir'] = df.apply(lambda row: '+' if row['efmt'] > (0+beta) 
+                                           else '-' if row['efmt'] < (0-beta)
+                                           else '=', axis=1)
+
+    # quadrant (using absoulte error)
+    df.loc[:,'qae'] = df.apply(lambda row: get_quadrant_absolute_error(row), axis=1)
+
+    # quadrant (using error)
+    df.loc[:,'qe'] = df.apply(lambda row: get_quadrant_error(row, beta), axis=1)
+    
+    return df
+    
+def _sort_cast_ranking_df(df):
+    #,kind,metric,N,dir,
+    #gini,mae,fmt,gt,fm,d,ploM,plom,hMM,hmm,efmr,aefmr,
+    #epoch,rank,qae,qe
+    
+    ### casting to float
+    cflo = ['fm','d','hMM','hmm','ploM','plom','fmt','gt','efmt','aefmt','gini','mae','me']
+    df[cflo] = df[cflo].astype(np.float)
+    
+    ### casting to int
+    if df['epoch'].isnull().any():
+        df.loc[:,'epoch'] = -1
+        
+    cint = ['N','rank','epoch','qae','qe']    
+    df[cint] = df[cint].astype(int)
+
+    ### sorting columns
+    cols = ['dataset','kind','metric','N','fm','d','ploM','plom','hMM','hmm','epoch',
+            'rank','fmt','gt','efmt','qe','aefmt','qae','dir',
+            'gini','mae','me']
+    
+    return df.loc[:,cols]
+
+    
+################################################################################
+# Correlation
+################################################################################
+
+def spearmancor_inequality_inequity(df, model, metric, local=True):
+    if local:
+        tmp = df.query("kind==@model & metric==@metric").copy()
+        x='gt'
+        y='efmt'
+    else:
+        tmp = df.query("kind==@model & metric==@metric & rank==5").copy()
+        x='gini'
+        y='me'
+    return stats.spearmanr(tmp[x].values, tmp[y].values)
+    
+    
+    
+################################################################################
+# OLS: linear regression (deprecated)
+################################################################################
+#deprecated
+def OLS_prepare_data(df, model, metric='pagerank', grouped=False):
+    data = df.query("kind == @model & metric == @metric").copy()
     if grouped:
         data = data.groupby(['fm','hmm','hMM','kind','metric']).mean().reset_index()
-    data.loc[:,'pw'] = data.apply(lambda row: int(row.metric=='pagerank'), axis=1)
+    #data.loc[:,'pw'] = data.apply(lambda row: int(row.metric=='pagerank'), axis=1)
     #data.loc[:,'hMM-hmm'] = data.apply(lambda row: row.hMM-row.hmm, axis=1)
     #data.loc[:,'abs(hMM-hmm)'] = data.apply(lambda row: abs(row.hMM-row.hmm), axis=1)
     data.loc[:,'Intercept'] = 1
     return data
 
+#deprecated
 def OLS_best_model(data):
     # Create lists of variables to be used in each regression
     X = []
-    X.append(['Intercept', 'pw'])
-    X.append(['Intercept', 'pw', 'mae'])
-    X.append(['Intercept', 'pw', 'mae', 'fm'])
-    X.append(['Intercept', 'pw', 'mae', 'fm', 'hmm'])
-    X.append(['Intercept', 'pw', 'mae', 'fm', 'hmm', 'hMM'])
+    X.append(['Intercept'])
+    X.append(['Intercept','gini', 'fm', 'hmm', 'hMM'])
+    X.append(['Intercept', 'fm'])
+    X.append(['Intercept', 'fm', 'hmm'])
+    X.append(['Intercept', 'fm', 'hmm', 'hMM'])
     
     # Estimate an OLS regression for each set of variables
     regs = []
     for xi in X:
-        regs.append(sm.OLS(data['gini'], data[xi], missing='drop').fit())
+        regs.append(sm.OLS(data['me'], data[xi], missing='drop').fit())
     
     # Summary
-    info_dict={'R-squared' : lambda x: "{:.3f}".format(x.rsquared),
+    info_dict={'Adj. R-squared' : lambda x: "{:.3f}".format(x.rsquared_adj),
+               'R-squared' : lambda x: "{:.3f}".format(x.rsquared),
                'No. observations' : lambda x: "{:d}".format(int(x.nobs))}
 
     results_table = summary_col(results=regs,
@@ -354,7 +458,9 @@ def OLS_best_model(data):
                                 info_dict=info_dict,
                                 regressor_order=['Intercept',
                                                  'pw',
+                                                 'me',
                                                  'mae',
+                                                 'gini',
                                                  'fm',
                                                  'hmm',
                                                  'hMM',
@@ -366,67 +472,3 @@ def OLS_best_model(data):
     best = np.argmax(rs)
     best = regs[best]
     return results_table, best
-
-
-def all_datasets_summary_as_latex(df_summary, output=None):
-    df_latex_summary = df_summary.pivot_table(columns='dataset', aggfunc=lambda x: ' '.join(str(v) for v in x))
-    columns = ['N', 'class', 'min', 'fm', 'd', 'plo_M','plo_m', 'EMM', 'EMm', 'EmM', 'Emm', 'hMM', 'hmm']
-    df_latex_summary = df_latex_summary.reindex(columns)
-    
-    if output is not None:
-        fn = os.path.join(output, 'summary_datasets.tex')
-        df_latex_summary.to_latex(fn, float_format=lambda x: '%.5f' % x)
-        print('{} saved!'.format(fn))
-        
-    return df_latex_summary
-
-
-
-# def OLS_prepare_data(df, model, grouped=False):
-#     data = df.query("rank == 5 & kind == @model & metric in ['pagerank','wtf']").copy()
-#     if grouped:
-#         data = data.groupby(['fm','hmm','hMM','kind','metric']).mean().reset_index()
-#     data.loc[:,'pw'] = data.apply(lambda row: int(row.metric=='pagerank'), axis=1)
-#     data.loc[:,'hmm-hMM'] = data.apply(lambda row: (1+row.hmm)/(1+row.hMM), axis=1)
-    
-#     data.loc[:,'Intercept'] = 1
-#     return data
-
-# def OLS_best_model(data):
-#     # Create lists of variables to be used in each regression
-#     X1 = ['Intercept', 'pw']
-#     X2 = ['Intercept', 'pw', 'mae']
-#     X3 = ['Intercept', 'pw', 'mae', 'fm']
-#     X4 = ['Intercept', 'pw', 'mae', 'fm', 'hmm']
-#     X5 = ['Intercept', 'pw', 'mae', 'fm', 'hmm', 'hMM']
-
-#     # Estimate an OLS regression for each set of variables
-#     reg1 = sm.OLS(data['gini'], data[X1], missing='drop').fit()
-#     reg2 = sm.OLS(data['gini'], data[X2], missing='drop').fit()
-#     reg3 = sm.OLS(data['gini'], data[X3], missing='drop').fit()
-#     reg4 = sm.OLS(data['gini'], data[X4], missing='drop').fit()
-#     reg5 = sm.OLS(data['gini'], data[X5], missing='drop').fit()
-#     regs = [reg1, reg2, reg3, reg4, reg5]
-    
-#     # Summary
-#     info_dict={'R-squared' : lambda x: "{:.3f}".format(x.rsquared),
-#                'No. observations' : lambda x: "{:d}".format(int(x.nobs))}
-
-#     results_table = summary_col(results=regs,
-#                                 float_format='%0.3f',
-#                                 stars = True,
-#                                 model_names=['Model {}'.format(i+1) for i,r in enumerate(regs)],
-#                                 info_dict=info_dict,
-#                                 regressor_order=['Intercept',
-#                                                  'pw',
-#                                                  'mae',
-#                                                  'fm',
-#                                                  'hmm',
-#                                                  'hMM',
-#                                                 ])
-#     results_table.add_title('OLS Regressions')
-    
-#     # Best model
-#     rs = np.array([reg1.rsquared, reg2.rsquared, reg3.rsquared, reg4.rsquared, reg5.rsquared])
-#     best = regs[np.argmax(rs)]
-#     return results_table, best
