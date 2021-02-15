@@ -1770,49 +1770,6 @@ def feature_importance(data, model, metric, kfold, fn=None):
     plt.close()
     return df_summary
 
-def original_feature_importance(data, model, metric, kfold):
-
-    for local in [True,False]:
-        for yy in ['error','gini']:
-            if local:
-                df = data.query("kind==@model & metric==@metric").copy() #local
-                y = 'efmt' if yy == 'error' else 'gt'
-                features = ['fm','hMM','hmm','rank','random', y]
-            else:
-                df = data.query("rank==5 & kind==@model & metric==@metric").copy() #global
-                y = 'me' if yy == 'error' else 'gini'
-                features = ['fm','hMM','hmm','random', y]
-
-            df.loc[:,'random'] = np.random.random(size=df.shape[0])
-            df = df[features]
-            scaler = MinMaxScaler(feature_range=(0, 1))
-            Z = scaler.fit_transform(df)
-
-            X = Z[:,:-1]
-            y = Z[:,-1]
-
-            ### model performance
-            rf = RandomForestRegressor(n_estimators=100, n_jobs=-1)
-            r2s = cross_val_score(rf, X, y, cv=kfold)
-            preds = cross_val_predict(rf, X, y, cv=kfold)
-            fig, ax = plt.subplots(1,1,figsize=(2,2))
-            ax.scatter(y, preds, edgecolors=(0, 0, 0))
-            ax.plot([y.min(), y.max()], [y.min(), y.max()], 'k--', lw=4)
-            ax.text(s='R2={:.2f}\n({:.2f})'.format(np.mean(r2s), np.std(r2s)),x=0,y=0.8)
-            print('R2={:.2f}\n({:.2f})'.format(np.mean(r2s), np.std(r2s)))
-            ax.set_xlabel('Measured')
-            ax.set_ylabel('Predicted')
-            ax.set_title("{} {}".format('Local' if local else 'Global', yy.title()))
-            plt.show()
-
-            ### feature importance
-            output = cross_validate(rf, X, y, cv=kfold, scoring = 'r2', return_estimator =True)
-            feature_importances = pd.DataFrame(columns = features[:-1])
-            for idx,estimator in enumerate(output['estimator']):
-                feature_importances = feature_importances.append(pd.Series(estimator.feature_importances_,index=features[:-1]), ignore_index=True)
-            print(feature_importances.mean().sort_values(ascending=False))
- 
-
 
 ################################################################################ 
 # OLS (deprecated)
