@@ -137,7 +137,8 @@ def _pick_target(source, N, labels, indegrees, outdegrees, homophily):
     Given a (index) source node, it returns 1 (index) target node based on homophily and pref. attachment (indegree).
     The target node must have out_degree > 0 (the older the node in the network, the more likely to get more links)
     '''
-    targets = [n for n in np.arange(N) if n!=source and (outdegrees[n]>0 if outdegrees.sum()>20 else True)]
+    one_percent = N * 1/100.
+    targets = [n for n in np.arange(N) if n!=source and (outdegrees[n]>0 if outdegrees.sum()>one_percent else True)]
     probs = np.array([ homophily[labels[source],labels[n]] * (indegrees[n]+1) for n in targets])
     probs /= probs.sum()
     return np.random.choice(a=targets,size=1,replace=True,p=probs)[0]
