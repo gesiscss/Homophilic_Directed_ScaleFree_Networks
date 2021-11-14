@@ -41,24 +41,36 @@ def run(model, N, fm, d, ploM, plom, hMM, hmm, epoch, output):
         return 
     
     ### Create network
-    g = create_graph(model, N, fm, d, ploM, plom, hMM, hmm, verbose=False, seed=epoch) 
-    io.save_gpickle(g, fn)
-    
+    try:
+        g = create_graph(model, N, fm, d, ploM, plom, hMM, hmm, verbose=False, seed=epoch) 
+        io.save_gpickle(g, fn)
+    except Exception as ex:
+        print("1. error at creating the network")
+        print(ex)
+        
     ### Network metadata
-    EMM, EMm, EmM, Emm = graph.get_edge_type_counts(g,True)
-    pliM, plim = graph.get_indegree_powerlaw_exponents(g)
-    
-    t1 = "model,N,fm,d,plo_M,plo_m,pli_M,pli_m,EMM,EMm,EmM,Emm,hMM,hmm"
-    t2 = ",".join([model, str(N), str(fm), str(d), str(ploM), str(plom), str(pliM.alpha), str(plim.alpha), 
-                    str(EMM), str(EMm), str(EmM), str(Emm), str(hMM), str(hmm)])
-    fn = os.path.join(output,model,'{}_netmeta.csv'.format(filename))
-    io.save_text("{}\n{}".format(t1,t2), fn)
-    
+    try:
+        EMM, EMm, EmM, Emm = graph.get_edge_type_counts(g,True)
+        pliM, plim = graph.get_indegree_powerlaw_exponents(g)
+
+        t1 = "model,N,fm,d,plo_M,plo_m,pli_M,pli_m,EMM,EMm,EmM,Emm,hMM,hmm"
+        t2 = ",".join([model, str(N), str(fm), str(d), str(ploM), str(plom), str(pliM.alpha), str(plim.alpha), 
+                        str(EMM), str(EMm), str(EmM), str(Emm), str(hMM), str(hmm)])
+        fn = os.path.join(output,model,'{}_netmeta.csv'.format(filename))
+        io.save_text("{}\n{}".format(t1,t2), fn)
+    except Exception as ex:
+        print("2. error at creating the network metadata")
+        print(ex)
+        
     ### Node metadata
-    df = graph.get_node_metadata_as_dataframe(g)
-    fn = os.path.join(output,model,'{}.csv'.format(filename))
-    io.save_csv(df, fn)
-    
+    try:
+        df = graph.get_node_metadata_as_dataframe(g)
+        fn = os.path.join(output,model,'{}.csv'.format(filename))
+        io.save_csv(df, fn)
+    except Exception as ex:
+        print("3. error at creating the node metadata")
+        print(ex)
+        
 def create_graph(model, N, fm, d, plo_M, plo_m, hMM, hmm, verbose, seed):
 
     if model == 'DPAH':
