@@ -362,35 +362,27 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
             ### Exponents
             if row == 0:
                 # indegree
-                xye[metric] = {'aps': (30, 0.5), 
-                               #'apsgender3': (120, 0.007), 'apsgender8': (100, 0.01), 
-                               #'github': (500, 0.00055), 'pokec': (1600, 0.00001), 
-                               'hate': (24, 0.5), 
-                               'blogs': (145, 0.05), 'seventh': (50, 0.5), 
-                               'wikipedia': (30, 0.4)}
+                xye[metric] = {'aps': (40, 0.5), 
+                               'hate': (30, 0.5), 
+                               'blogs': (150, 0.05), 
+                               'wikipedia': (40, 0.4)}
                 
-                xym[metric] = {'aps': (2, 0.0005), 
-                               #'apsgender3': (20, 0.00002), 'apsgender8': (13, 0.00002), 
-                               #'github': (12, 0.00000008), 'pokec': (140, 0.000000000008), 
-                               'hate': (3, 0.003), 
-                               'blogs': (32, 0.0004), 'seventh': (7, 0.005), 
-                               'wikipedia': (2, 0.0005)}
+                xym[metric] = {'aps': (2, 0.0002), 
+                               'hate': (3, 0.001), 
+                               'blogs': (32, 0.00025), 
+                               'wikipedia': (2, 0.0002)}
 
             else:
                 # outdegree
-                xye[metric] = {'aps': (20, 0.7), 
-                               #'apsgender3': (60, 0.025), 'apsgender8': (180, 0.0025), 
-                               #'github': (500, 0.0004), 'pokec': (1300, 0.00009), 
-                               'hate': (35, 0.4), 
-                               'blogs': (65, 0.25), 'seventh': (100, 0.3), 
-                               'wikipedia': (20, 0.6)}
+                xye[metric] = {'aps': (25, 0.7), 
+                               'hate': (50, 0.4), 
+                               'blogs': (80, 0.25),
+                               'wikipedia': (25, 0.6)}
                 
-                xym[metric] = {'aps': (4, 0.0005), 
-                               #'apsgender3': (10, 0.00009), 'apsgender8': (7, 0.0000005), 
-                               #'github': (30, 0.0000000095), 'pokec': (110, 0.000000001), 
-                               'hate': (2, 0.0001), 
-                               'blogs': (22, 0.0005), 'seventh': (12, 0.002), 
-                               'wikipedia': (7, 0.0005)}
+                xym[metric] = {'aps': (4, 0.0001), 
+                               'hate': (2, 0.000015), 
+                               'blogs': (18, 0.0001),
+                               'wikipedia': (7, 0.0002)}
 
             ### Column name (dataset)
             axes[row, col].text(s=txt_emp, x=xye[metric][dataset.lower()][0], y=xye[metric][dataset.lower()][1], horizontalalignment='left', va='top')
@@ -402,7 +394,7 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
                 yt = axes[row, col].get_yticks()
                 axes[row, col].text(s=metric,
                                     x=700 if row == 0 else 78,
-                                    y=0.01 if row == 0 else 0.01 , rotation=-90)
+                                    y=0.003 , rotation=-90, va='center')
 
     ### legend
     width = 4*1.1
@@ -434,7 +426,7 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
     else:
         xt = axes[row, col].get_xticks()
         yt = axes[row, col].get_yticks()
-        axes[row, col].text(min(xt) * 110,
+        axes[row, col].text(min(xt) * 10,
                             min(yt) * 4.7,
                             xlabel, {'ha': 'center', 'va': 'center'}, rotation=0)
 
@@ -506,7 +498,7 @@ def plot_vh_inequalities_empirical(df_rank, graph_fnc=None, datapath=None, vtype
     ### plot setup
     r = 3 # rows
     c = tmp.dataset.nunique() # columns (datasets)
-    w = 2.5 # width cell
+    w = 2.2 # width cell
     h = 2 # height cell
     lw = 1 # line width plot
     blw = 0.8 # line witdth baselines
@@ -779,7 +771,7 @@ def plot_inequalities_fit_improved(df_best_fit, df_empirical, models, markers, v
     x, y = vtype, 'gini'
     xmin, xmax = -1,1 #df_best_fit[x].min(), df_best_fit[x].max()
     ymin, ymax = 0,1 #df_best_fit[y].min(), df_best_fit[y].max()
-    fig,axes = plt.subplots(nrow, ncol, figsize=(3*ncol, 3), sharey=True, sharex=True)
+    fig,axes = plt.subplots(nrow, ncol, figsize=(2.2*ncol, 2.2), sharey=True, sharex=True)
     
     ### scatter plot
     tmp_emp = df_empirical.groupby(['dataset','metric','kind']).mean().reset_index()
@@ -804,16 +796,19 @@ def plot_inequalities_fit_improved(df_best_fit, df_empirical, models, markers, v
             axes[c].set_title(metric.upper())
             
             for i in np.arange(mini,1.0+0.1,0.1):
-                i = round(i,1)
-                axes[c].axhline(y=i, lw=0.5 if i!=0.5 else 1, ls='--', c='#FAF8F7' if i!=0.5 else 'black', zorder=0)
-                axes[c].axvline(x=i, lw=0.5, ls='--', c='#FAF8F7', zorder=0)
-                
+               i = round(i,1)
+               axes[c].axhline(y=i, lw=0.5, ls='-', c='#FAF8F7', zorder=0)
+               axes[c].axvline(x=i, lw=0.5, ls='-', c='#FAF8F7', zorder=0)
+
+            axes[c].axhline(y=0.3, lw=0.5, ls='--', c='grey', zorder=0)
+            axes[c].axhline(y=0.6, lw=0.5, ls='--', c='grey', zorder=0)
+
             if vtype == 'mae':
-                axes[c].axvline(x=0.5, lw=1, ls='--', c='black', zorder=0)
+                axes[c].axvline(x=0.5, lw=0.5, ls='--', c='grey', zorder=0)
             else:
                 smooth = 0.05
-                axes[c].axvline(x=0.0+smooth, lw=1, ls='--', c='black', zorder=0)
-                axes[c].axvline(x=0.0-smooth, lw=1, ls='--', c='black', zorder=0)
+                axes[c].axvline(x=0.0+smooth, lw=0.5, ls='--', c='grey', zorder=0)
+                axes[c].axvline(x=0.0-smooth, lw=0.5, ls='--', c='grey', zorder=0)
 
     ### legend 1 (datasets) 
     legend1 = axes[-1].legend(bbox_to_anchor=(1.04,1), borderaxespad=0, title='Dataset')
@@ -1008,8 +1003,8 @@ def plot_vh_inequalities_fit(df_rank, x='mae', group=False, kind=['empirical','D
         ax.set_xlabel(xlabel)
     else:
         ax = axes[-1, int(axes.shape[1] / 2)] if nrows > 1 else axes[int(axes.shape[0] / 2)]
-        ax.text(-0.05,
-                0.05 if not group else 0.05,
+        ax.text(-0.20,
+                -0.1 if not group else 0.05,
                 xlabel, {'ha': 'center', 'va': 'center'}, rotation=0)
 
     ### limits
