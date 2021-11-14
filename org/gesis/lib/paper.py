@@ -2,6 +2,7 @@
 # System dependencies
 ################################################################################            
 import os
+import pandas as pd
 import numpy as np
 from scipy import stats
 import statsmodels.api as sm
@@ -123,11 +124,19 @@ def _load_metadata(path, kind):
     print(fn_final)
     return df
     
-def load_network_metadata(path):
-    return _load_metadata(path, 'network')
+def load_network_metadata(path, datasets=None):
+    tmp = _load_metadata(path, 'network')
+    if datasets is not None:
+        tmp.dataset = pd.Categorical(tmp.dataset, categories=datasets, ordered=True)
+        tmp.sort_values('dataset', inplace=True)
+    return tmp
 
-def load_node_metadata(path):
-    return _load_metadata(path, 'nodes')
+def load_node_metadata(path, datasets=None):
+    tmp = _load_metadata(path, 'nodes')
+    if datasets is not None:
+        tmp.dataset = pd.Categorical(tmp.dataset, categories=datasets, ordered=True)
+        tmp.sort_values('dataset', inplace=True)
+    return tmp
 
 def _get_netmeta_from_fn(attribute, fn):
     #DBAH-N2000-fm0.1-d0.0015-ploM3.0-plom3.0-hMM0.0-hmm0.0-ID9_rank.csv
@@ -165,7 +174,7 @@ def _get_netmeta_from_fn(attribute, fn):
     return None
     
     
-def load_rank(path, metadata=None, smooth=0.05):
+def load_rank(path, metadata=None, smooth=0.05, datasets=None, models=None):
 
     fn_final = os.path.join(path,'all_datasets_rank.csv')
     if os.path.exists(fn_final):
@@ -211,12 +220,20 @@ def load_rank(path, metadata=None, smooth=0.05):
     ### sorting columns and casting
     df = _sort_cast_ranking_df(df)
     
+    if datasets is not None:
+        df.dataset = pd.Categorical(df.dataset, categories=datasets, ordered=True)
+    
+    if models is not None:
+        df.kind = pd.Categorical(df.kind, categories=models, ordered=True)
+    
+    df.sort_values(['dataset','kind'], inplace=True)
+        
     if not os.path.exists(fn_final):
         io.save_csv(df, fn_final)
     return df
 
 
-def load_rank_all_models(path, models, smooth=0.05):
+def load_rank_all_models(path, models, smooth=0.05, datasets=None):
     df_rank_fit = None
     for model in models:
         tmp = load_rank(os.path.join(path,model), smooth=smooth)
@@ -231,6 +248,13 @@ def load_rank_all_models(path, models, smooth=0.05):
     ### sorting columns
     df_rank_fit = _sort_cast_ranking_df(df_rank_fit)
     
+    if datasets is not None:
+        df_rank_fit.dataset = pd.Categorical(df_rank_fit.dataset, categories=datasets, ordered=True)
+    if models is not None:
+        df_rank_fit.kind = pd.Categorical(df_rank_fit.kind, categories=models, ordered=True)
+    
+    df_rank_fit.sort_values(['dataset','kind'], inplace=True)
+        
     return df_rank_fit
     
 def load_rank_synthetic_all_models(path, models, smooth=0.05, update=False):
@@ -289,15 +313,10 @@ def _load_rank_synthetic(path, smooth=0.05, update=False):
 # Special Handlers
 ################################################################################
 
-def best_fit(df_fit, df_empirical, datasets=None, models=None, vtype='mae'):
-    ### best model 
-    def _get_difference_fit(row,tmp_emp,vtype):
-        dataset = row.dataset
-        metric = row.metric
-        tmp = tmp_emp.query("dataset==@dataset & metric==@metric")
-        return abs(row['gini']-tmp.iloc[0]['gini']) + abs(row[vtype]-tmp.iloc[0][vtype])
-
-    tmp_fit = df_fit.copy()
+def best_fit(df_rank_fit, df_rank_empirical, datasets=None, models=None, vtype='mae', metric='pagerank'):
+    
+    tmp_fit = df_rank_fit.copy()
+    tmp_emp = df_rank_empirical.copy()
     
     if datasets is not None:
         tmp_fit = tmp_fit.query("dataset in @datasets")    
@@ -305,20 +324,61 @@ def best_fit(df_fit, df_empirical, datasets=None, models=None, vtype='mae'):
     if models is not None:
         tmp_fit = tmp_fit.query("kind in @models")
     
+    if metric is not None:
+        tmp_fit = tmp_fit.query("metric == @metric")
+        
     tmp_fit = tmp_fit.groupby(['dataset','metric','kind']).mean().reset_index()
-    tmp_emp = df_empirical.groupby(['dataset','metric','kind']).mean().reset_index()
-    tmp_fit.loc[:,'dif'] = tmp_fit.apply(lambda row:_get_difference_fit(row,tmp_emp,vtype), axis=1)
-    idx = tmp_fit.groupby(['metric','dataset']).apply(lambda row:row['dif'].argmin())
-    tmp_fit = tmp_fit.loc[idx, :]
+    tmp_emp = tmp_emp.groupby(['dataset','metric','kind']).mean().reset_index()
+
+    def _get_difference_fit(df,row):
+        q = "dataset=='{}' and metric=='{}'".format(row.dataset,row.metric)
+        tmp = df.query(q)
+        eg = abs(row.gini - tmp.iloc[0].gini)
+        em = abs(row[vtype] - tmp.iloc[0][vtype])
+        return eg+em
+
+    tmp_fit.loc[:,'dif'] = tmp_fit.apply(lambda row:_get_difference_fit(tmp_emp, row) , axis=1)
+    idx = tmp_fit.groupby(['dataset','metric']).apply(lambda row:row['dif'].argmin())
+    idx = tmp_fit.groupby(['metric','dataset'])['dif'].idxmin()
+    tmp_fit = tmp_fit.loc[idx,['dataset','metric','kind','gini','mae','me','dif']]
     return tmp_fit
 
-def only_new_cases(df):
-    tmp = df.query("kind in ['Random','DPAH']").copy()
-    tmp.loc[:,'kind'] = tmp.apply(lambda row: 'DPAH2' if (row.ploM==2 and row.kind=='DPAH') else 'DPAH3' if (row.ploM==3 and row.kind=='DPAH') else row.kind, axis=1)
-    tmp.loc[:,'kind'] = tmp.apply(lambda row: 'Random8' if (row.d==0.0008 and row.kind=='Random') else 'Random15' if (row.d==0.0015 and row.kind=='Random') else row.kind, axis=1)
+
+def only_new_cases(df, kind):
+
+    tmp = df.query("kind == @kind").copy()
+    if kind == 'Random':
+        extra = [0.1, 0.01, 0.001, 0.0001, 0.0015, 0.0008, 0.0005]
+        tmp = tmp.query("d in @extra").copy()
+        tmp.loc[:, 'kind'] = tmp.apply(lambda row: 'd=0.1' if (row.d == 0.1 and row.kind == 'Random') else
+                                                   'd=0.01' if (row.d == 0.01 and row.kind == 'Random') else
+                                                   'd=0.001' if (row.d == 0.001 and row.kind == 'Random') else
+                                                   'd=0.0001' if (row.d == 0.0001 and row.kind == 'Random') else
+                                                   'd=0.0015' if (row.d == 0.0015 and row.kind == 'Random') else
+                                                   'd=0.0008' if (row.d == 0.0008 and row.kind == 'Random') else
+                                                   'd=0.0005' if (row.d == 0.0005 and row.kind == 'Random') else
+                                                   row.kind, axis=1)
+        var = 'd'
+    elif kind == 'DPAH':
+        tmp.loc[:,'kind'] = tmp.apply(lambda row: '$\gamma={}$'.format(row.ploM), axis=1)
+        var = 'ploM'
+
+    markers = ["*", ".", "x", "v",">","<","^",'+']
+    tmp.sort_values(var, inplace=True, ascending=True)
     models = tmp.kind.unique().tolist()
-    markers = ["*",".","x","v"]
+
     return tmp, models, markers
+
+#def only_new_cases(df, model=None):
+#    if model is not None:
+#        tmp = df.query("kind == @model").copy()
+#    else:
+#        tmp = df.query("kind in ['Random','DPAH']").copy()
+#    tmp.loc[:,'kind'] = tmp.apply(lambda row: 'DPAH2' if (row.ploM==2 and row.kind=='DPAH') else 'DPAH3' if (row.ploM==3 and row.kind=='DPAH') else row.kind, axis=1)
+#    tmp.loc[:,'kind'] = tmp.apply(lambda row: 'Random8' if (row.d==0.0008 and row.kind=='Random') else 'Random15' if (row.d==0.0015 and row.kind=='Random') else row.kind, axis=1)
+#    models = tmp.kind.unique().tolist()
+#    markers = ["*",".","x","v"]
+#    return tmp, models, markers
 
 def remove_extra_synthetic(df):
     return df.query("(ploM==3 & kind!='Random') | (kind=='Random'&d==0.0015)")

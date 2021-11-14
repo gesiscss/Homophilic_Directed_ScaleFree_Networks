@@ -16,7 +16,7 @@ from org.gesis.lib import homophily
 ################################################################
 # Constants
 ################################################################
-DATASETS = ['aps','blogs','hate','seventh','wikipedia']
+DATASETS = ['aps','hate','blogs','wikipedia']
 
 ################################################################
 # Main

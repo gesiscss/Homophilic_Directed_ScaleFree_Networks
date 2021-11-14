@@ -13,6 +13,7 @@ from collections import Counter
 CLASS = 'm'
 LABELS = [0,1] # 0 majority, 1 minority
 GROUPS = ['M', 'm']
+EPSILON = 0.00001
 
 ################################################################
 # Functions
@@ -53,6 +54,8 @@ def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
     activity /= activity.sum()
     
     # 5. Init homophily
+    h_mm = EPSILON if h_mm == 0 else h_mm
+    h_MM = EPSILON if h_MM == 0 else h_MM
     homophily = np.array([[h_MM, 1-h_MM],[1-h_mm, h_mm]])
     
     # INIT SUMMARY

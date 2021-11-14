@@ -248,9 +248,12 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
     metrics = ['indegree', 'outdegree']
     discrete = True
     labels = {0:'Majority', 1:'minority'}
-    datasets = sorted(reduce(np.intersect1d, (df_summary_empirical.dataset.unique(),
-                                              df_metadata_empirical.dataset.unique(),
-                                              df_metadata_fit.dataset.unique())))
+    
+    
+    #datasets = reduce(np.intersect1d, (df_summary_empirical.dataset.unique(),
+    #                                  df_metadata_empirical.dataset.unique(),
+    #                                  df_metadata_fit.dataset.dropna().unique()))
+    datasets = df_summary_empirical.dataset.unique()
     
     ### main plot
     nrows = len(metrics)
@@ -332,6 +335,7 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
                     txt_emp = txt_emp.replace("<min>" if minority else "<maj>", str(round(fit_emp.power_law.alpha,1)))
                 except Exception as ex:
                     print(ex)
+                    print('?')
                     pass
                 
                 
@@ -358,30 +362,34 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
             ### Exponents
             if row == 0:
                 # indegree
-                xye[metric] = {'aps': (40, 0.5), 
+                xye[metric] = {'aps': (30, 0.5), 
                                #'apsgender3': (120, 0.007), 'apsgender8': (100, 0.01), 
                                #'github': (500, 0.00055), 'pokec': (1600, 0.00001), 
-                               'blogs': (180, 0.05), 'seventh': (60, 0.5), 'hate': (25, 0.5), 
-                               'wikipedia': (40, 0.4)}
+                               'hate': (24, 0.5), 
+                               'blogs': (145, 0.05), 'seventh': (50, 0.5), 
+                               'wikipedia': (30, 0.4)}
                 
                 xym[metric] = {'aps': (2, 0.0005), 
                                #'apsgender3': (20, 0.00002), 'apsgender8': (13, 0.00002), 
                                #'github': (12, 0.00000008), 'pokec': (140, 0.000000000008), 
-                               'blogs': (32, 0.0004), 'seventh': (7, 0.005), 'hate': (3, 0.003), 
+                               'hate': (3, 0.003), 
+                               'blogs': (32, 0.0004), 'seventh': (7, 0.005), 
                                'wikipedia': (2, 0.0005)}
 
             else:
                 # outdegree
-                xye[metric] = {'aps': (25, 1), 
+                xye[metric] = {'aps': (20, 0.7), 
                                #'apsgender3': (60, 0.025), 'apsgender8': (180, 0.0025), 
                                #'github': (500, 0.0004), 'pokec': (1300, 0.00009), 
-                               'blogs': (80, 0.25), 'seventh': (100, 0.3), 'hate': (45, 0.4), 
-                               'wikipedia': (25, 0.6)}
+                               'hate': (35, 0.4), 
+                               'blogs': (65, 0.25), 'seventh': (100, 0.3), 
+                               'wikipedia': (20, 0.6)}
                 
                 xym[metric] = {'aps': (4, 0.0005), 
                                #'apsgender3': (10, 0.00009), 'apsgender8': (7, 0.0000005), 
                                #'github': (30, 0.0000000095), 'pokec': (110, 0.000000001), 
-                               'blogs': (19, 0.0005), 'seventh': (12, 0.002), 'hate': (2, 0.0001), 
+                               'hate': (2, 0.0001), 
+                               'blogs': (22, 0.0005), 'seventh': (12, 0.002), 
                                'wikipedia': (7, 0.0005)}
 
             ### Column name (dataset)
@@ -401,7 +409,7 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
     row = 0
     col = int(axes.shape[1] / 2)
     axes[row,col].legend(loc='lower left',
-                     bbox_to_anchor=(width/-2.5, 1.12, width, 0.2), mode='expand',
+                     bbox_to_anchor=(width/-1.8, 1.12, width, 0.2), mode='expand',
                      ncol=4, handletextpad=0.3, frameon=False)
 
     ### ylabel left
@@ -444,6 +452,47 @@ def plot_degree_distributions_groups_fit(df_summary_empirical, df_metadata_empir
    
    
     
+def plot_gini_density_distribution(df, title, fn=None):
+    x = 'd'
+    y = 'gini'
+    metrics = ['PageRank','WTF']
+    colors = ['red', 'blue']
+    bps = []
+
+    fig,ax = plt.subplots(1,1,figsize=(6,4))
+    for metric,color in zip(*(metrics,colors)):
+        tmp = df.query("metric==@metric.lower() & rank==100", engine='python').copy()
+        labels, data = zip(*[(name, tmp[y]) for name, tmp in tmp.groupby(x)])
+        tmp = ax.boxplot(data)
+        for box in tmp['boxes']:
+            box.set(color=color, linewidth=3)
+        bps.append(tmp)
+
+    ### details
+    ax.set_title(title)
+    ax.set_xlabel('Edge density')
+    ax.set_ylabel('Inequality\n(Gini coef. of entire rank distribution)')
+    ax.set_xticklabels(labels)
+    ax.set_ylim((0-0.03,1+0.03))
+    ax.legend([bp['boxes'][0] for bp in bps], metrics, loc='upper right')
+
+    ### vertical baselines
+    ax.axhline(y=0.3, ls='--', color='darkgrey', lw=0.5)
+    ax.axhline(y=0.6, ls='--', color='darkgrey', lw=0.5)
+
+    ### space between subplots
+    plt.subplots_adjust(hspace=0.1, wspace=0.1)
+
+    ### Save fig
+    if fn is not None:
+        fig.savefig(fn, bbox_inches='tight')
+        print('{} saved!'.format(fn))
+
+    ###
+    plt.show()
+    plt.close()
+    
+    
 ################################################################################
 # Ranking Empirical
 ################################################################################
@@ -457,8 +506,8 @@ def plot_vh_inequalities_empirical(df_rank, graph_fnc=None, datapath=None, vtype
     ### plot setup
     r = 3 # rows
     c = tmp.dataset.nunique() # columns (datasets)
-    w = 3 # width cell
-    h = 1 # height cell
+    w = 2.5 # width cell
+    h = 2 # height cell
     lw = 1 # line width plot
     blw = 0.8 # line witdth baselines
     
@@ -473,7 +522,7 @@ def plot_vh_inequalities_empirical(df_rank, graph_fnc=None, datapath=None, vtype
     lightcolors = sns.xkcd_palette(["light green", "light purple"])
     
     ### plot
-    fig, axes = plt.subplots(r,c,figsize=(r*w, c*h),sharex=False, sharey=False)
+    fig, axes = plt.subplots(r,c,figsize=(c*w, r*h),sharex=False, sharey=False)
     
     counter = 0
     for mc, met in enumerate(tmp.metric.unique()):
@@ -488,6 +537,7 @@ def plot_vh_inequalities_empirical(df_rank, graph_fnc=None, datapath=None, vtype
                     g = g.subgraph(max(nx.connected_components(g.to_undirected()), key=len))
                     ncolor = [MAIN_COLORS['min'] if obj[g.graph['label']] else MAIN_COLORS['maj'] 
                               for n,obj in g.nodes(data=True)]
+                    
                     nx.draw(g, 
                             pos = nx.nx_pydot.graphviz_layout(g, prog='neato'), 
                             edge_color=ecolor,
@@ -498,6 +548,7 @@ def plot_vh_inequalities_empirical(df_rank, graph_fnc=None, datapath=None, vtype
                             arrowsize=asize,
                             with_labels=False, 
                             ax=axes[0,i])
+                    
                 except Exception as ex:
                     print(ex)
                 axes[0,i].axis('off')
@@ -717,7 +768,7 @@ def plot_inequalities_fit_improved(df_best_fit, df_empirical, models, markers, v
     label = vtype.upper() 
     
     ### datasets (hue1) and metrics (columns)
-    datasets = sorted(df_best_fit.dataset.str.lower().unique())
+    datasets = df_empirical.dataset.unique().categories #sorted(df_best_fit.dataset.str.lower().unique())
     metrics = sorted(df_best_fit.metric.unique()) 
     metrics = metrics if valid_metrics is None else [m for m in metrics if m in valid_metrics]
     
@@ -873,12 +924,10 @@ def plot_vh_inequalities_fit(df_rank, x='mae', group=False, kind=['empirical','D
 
     if x not in ['mae','me']:
         raise Exception('Invalid x-axis (horizontal ineq.)')
-        
-    #if all:
-    #    kind = ['empirical','DH','DPA','DPAH','Random','SBM']
-    #else:
-    #    kind = ['empirical', 'DPAH']
 
+    datasets = df_rank.dataset.unique()
+    models = df_rank.kind.unique()
+    
     ### only main data points
     if metrics == 'all':
         metrics = ['pagerank', 'wtf']
@@ -890,10 +939,6 @@ def plot_vh_inequalities_fit(df_rank, x='mae', group=False, kind=['empirical','D
     if group:
         tmp = tmp.groupby(['dataset','kind','metric']).mean().reset_index()
 
-    tmp.kind = tmp.kind.astype("category")
-    tmp.kind.cat.set_categories(kind, inplace=True)
-    tmp.sort_values(['kind','dataset','metric'], inplace=True)
-
     ### main plot
     nrows = tmp.metric.nunique()
     ncols = tmp.dataset.nunique()
@@ -902,7 +947,7 @@ def plot_vh_inequalities_fit(df_rank, x='mae', group=False, kind=['empirical','D
     ### subplots
     #colors = sns.color_palette() #"tab20")
     colors = ['black'] + Set1_6.mpl_colors
-    for col, dataset in enumerate(tmp.dataset.unique()):
+    for col, dataset in enumerate(datasets):
 
         ax = axes[0, col] if nrows > 1 else axes[col]
         ax.set_title(dataset)
@@ -918,7 +963,7 @@ def plot_vh_inequalities_fit(df_rank, x='mae', group=False, kind=['empirical','D
                             y=0.5+(len(metric)*0.018),# if nrows >1 else 0.46,
                             rotation=-90)
                                     
-            for hue, kind in enumerate(tmp.kind.unique()):
+            for hue, kind in enumerate(models):
                 data = tmp.query("dataset==@dataset & metric==@metric & kind==@kind").copy()
                 ax = axes[row, col] if nrows > 1 else axes[col]
                 ax.scatter(y=data.gini.values, x=data[x].values, label=kind, color=colors[hue], 
@@ -1135,38 +1180,50 @@ def plot_inequalities_simplified(df, models, metric, vtype='mae', fm=None, sym=T
         print('{} saved!'.format(fn))
     
     
-def plot_inequalities(df, models, markers, vtype='mae', mean=False, metric="pagerank", empirical=None, fn=None):
+def plot_inequalities(df, models, markers, vtype='mae', mean=False, metric="pagerank", empirical=None, title=None, fn=None):
     vat, mini, mid, color = setup_plot_HI_simplified(vtype)
+    title = 'Model' if title is None else title
     
     ### data
     data = df.query("metric == @metric").copy()
     if mean:
-        data = data.groupby(['kind','fm','hmm','hMM']).mean().reset_index()
-    data.sort_values([vtype,'gini'], inplace=True)
-
+        data = data.groupby(['kind','N','fm','d','hmm','hMM','ploM','plom'])[['gini','me','mae']].agg(['mean','std']).reset_index()
+    
     ### color
     colors = Set1_6.mpl_colors
-    #colors = Accent_8.mpl_colors
-    #colors = sns.color_palette()
     colors = cycle(colors)
-    #_ = next(colors) #empirical
     
     ### plot
     fig,ax = plt.subplots(1,1,figsize=(6,4))
     zorder = len(models)
+    
+    handles = []
+    zorder = len(models)
     y = 'gini'
     for model,marker in zip(*(models,markers)):
-        tmp = data.query("kind==@model")
-        ax.scatter(x=tmp[vtype], y=tmp[y], color=next(colors), label=model, marker=marker, zorder=zorder)
-        zorder-=1
+        tmp = data[data[('kind','')]==model]
+        #ax.scatter(x=tmp[vtype], y=tmp[y], color=next(colors), label=model, marker=marker, zorder=zorder)
+        #zorder-=1
+        x = tmp[('me','mean')]
+        xe = tmp[('me','std')]
+        y = tmp[('gini','mean')]
+        ye = tmp[('gini','std')]
+
+        h, = ax.plot(x, y, 'o', color=next(colors), label=model, markersize=1, zorder=zorder)
+        handles.append(h)
+        ax.errorbar(x=x, y=y, xerr=xe, yerr=ye, fmt='none', alpha=0.5, ecolor='grey', zorder=zorder)
+        zorder -= 1
+        
     if empirical is not None:
-        legend1 = ax.legend(title='Model', bbox_to_anchor=(1.04,1), borderaxespad=0, frameon=False)
+        legend1 = ax.legend(title=title, bbox_to_anchor=(1.04,1), borderaxespad=0, frameon=False)
     else:
         #ax.legend(title='Model',bbox_to_anchor=(0.5,1.0), loc="upper right", ncol=2)
-        ax.legend(title='Model', 
-                  ncol=len(models),
-                  bbox_to_anchor=(0,1.02,1,0.2), loc="lower left", mode="expand", borderaxespad=0, frameon=False)
-        
+        ax.legend(title=title,
+                 handles=handles,
+                 ncol=len(models),
+                 bbox_to_anchor=(0,1.02,1,0.2), loc="lower left", mode="expand", borderaxespad=0, frameon=False, markerscale=6)
+            
+            
     ### empirical
     zorder = 1000
     h = []
@@ -1205,8 +1262,6 @@ def plot_inequalities(df, models, markers, vtype='mae', mean=False, metric="page
     ax.set_ylabel("")
     ax.set_ylabel("Inequality\n(Gini coef. of entire rank distribution)")
     ax.set_xlabel("Inequity\n(Mean error of fraction of minorities across all top-k\% rank)")
-    #ax.set_ylabel("Individual Inequality\n(Gini coef. of entire rank distribution)")
-    #ax.set_xlabel("Group Inequality\n(Mean error of fraction of minorities across all top-k\%)")
     
     #ax.set_title(metric.upper())
     ax.set_ylim((0-0.03,1+0.03))
@@ -1541,7 +1596,7 @@ def plot_synthetic_rankings(df_rank, model=None, metric='pagerank', y='fmt', sym
                          palette=colors
                          )
     else:
-        hm = [0.0, 0.5, 1.0]
+        hm = [0.2, 0.5, 0.8]
         hM = [0.0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
         palette = BrBG_11 if len(hM)==11 else BrBG_5
         colors = palette.mpl_colors

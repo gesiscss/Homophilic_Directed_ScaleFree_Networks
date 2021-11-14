@@ -21,7 +21,7 @@ from org.gesis.model.Random import Random
 ################################################################
 # Constants
 ################################################################
-DATASETS = ['aps','blogs','hate','seventh','wikipedia']
+DATASETS = ['aps','hate','blogs','wikipedia']
 
 ################################################################
 # Main
