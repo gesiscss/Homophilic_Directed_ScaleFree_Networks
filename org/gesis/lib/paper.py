@@ -275,13 +275,14 @@ def load_rank_synthetic_all_models(path, models, smooth=0.05, update=False):
 def _load_rank_synthetic(path, smooth=0.05, update=False):
     fn_final = os.path.join(path,'all_networks_rank.csv')
     
-    if os.path.exists(fn_final):
+    if os.path.exists(fn_final) and not update:
         df = io.read_csv(fn_final)
     else:
         df = None
         cols = None
 
         files = [fn for fn in os.listdir(os.path.join(path)) if fn.endswith(".csv") 
+                 and not fn.startswith("all")
                  and (fn.startswith("rank_") or fn.endswith("_rank.csv"))]
 
         for fn in files:

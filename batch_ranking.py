@@ -1,6 +1,8 @@
 ################################################################
 # System's dependencies
 ################################################################
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 import os
 import sys
 import time
@@ -42,7 +44,7 @@ def run(path, dataset):
         print(df_rank.head())
         #df_rank = paper.load_rank_all_models(os.path.join(root,'fit'), models, SMOOTH, DATASETS)
         #df_rank = paper.load_rank(os.path.join(root,'empirical'), df_network_metadata_empirical, SMOOTH, DATASETS, ALLKIND)
-    
+        print(df_rank.shape)
         
     
 ################################################################
