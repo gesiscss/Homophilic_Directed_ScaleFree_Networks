@@ -234,6 +234,9 @@ def load_rank(path, metadata=None, smooth=0.05, datasets=None, models=None):
 
 
 def load_rank_all_models(path, models, smooth=0.05, datasets=None):
+    
+    ### TODO: store df_rank_fit and load if file exists
+    
     df_rank_fit = None
     for model in models:
         tmp = load_rank(os.path.join(path,model), smooth=smooth)

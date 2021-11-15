@@ -16,6 +16,9 @@ from org.gesis.lib import paper
 # Constants
 ################################################################
 DATASETS = ['aps','hate','blogs','wikipedia']
+BETA = 0.05 #beta
+MODELS = ["Random","DPA","DH","DPAH"]
+ALLKIND = ['empirical'] + MODELS
 
 ################################################################
 # Main
@@ -28,11 +31,19 @@ def run(path, dataset):
     _ = rank.horizontal_inequalities_parallel(path, dataset)
     
     # create summary file
-    root = path.split("/synthetic")[0]
-    models = [path.split("/synthetic/")[-1]]
-    smooth = 0.05
-    df_rank = paper.load_rank_synthetic_all_models(os.path.join(root,'synthetic'), models, smooth, True)
-    print(df_rank.head())
+    root = path.split('/')[0] # resuts
+    kind = path.split('/')[1] # synthetic, fit, empirical
+    # @TODO: make it work for fit and empirical nets
+    if kind == 'synthetic':
+        # only works for synthetic 
+        models = [path.split('/')[2]]
+        print(root, kind, models)
+        df_rank = paper.load_rank_synthetic_all_models(os.path.join(root,kind), models, BETA, True)
+        print(df_rank.head())
+        #df_rank = paper.load_rank_all_models(os.path.join(root,'fit'), models, SMOOTH, DATASETS)
+        #df_rank = paper.load_rank(os.path.join(root,'empirical'), df_network_metadata_empirical, SMOOTH, DATASETS, ALLKIND)
+    
+        
     
 ################################################################
 # Main
