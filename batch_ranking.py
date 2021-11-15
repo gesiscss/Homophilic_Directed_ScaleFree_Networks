@@ -10,6 +10,7 @@ import argparse
 # Local dependencies
 ################################################################
 from org.gesis.lib import rank
+from org.gesis.lib import paper
 
 ################################################################
 # Constants
@@ -22,7 +23,16 @@ DATASETS = ['aps','hate','blogs','wikipedia']
 
 def run(path, dataset):
     print(path, dataset)
+    
+    # create ranking measures for each network
     _ = rank.horizontal_inequalities_parallel(path, dataset)
+    
+    # create summary file
+    root = path.split("/synthetic")[0]
+    models = [path.split("/synthetic/")[-1]]
+    smooth = 0.05
+    df_rank = paper.load_rank_synthetic_all_models(os.path.join(root,'synthetic'), models, smooth, True)
+    print(df_rank.head())
     
 ################################################################
 # Main
