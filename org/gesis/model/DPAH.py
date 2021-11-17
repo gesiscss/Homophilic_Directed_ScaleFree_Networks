@@ -75,6 +75,10 @@ def DPAH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
         source = _pick_source(N, activity)
         ns = nodes[source]
         target = _pick_target(source, N, labels, indegrees, outdegrees, homophily)
+        
+        if target is None:
+            continue
+            
         nt = nodes[target]
         
         if not G.has_edge(ns, nt):
@@ -142,6 +146,10 @@ def _pick_target(source, N, labels, indegrees, outdegrees, homophily):
     '''
     one_percent = N * 1/100.
     targets = [n for n in np.arange(N) if n!=source and (outdegrees[n]>0 if outdegrees.sum()>one_percent else True)]
+    
+    if len(targets) == 0:
+        return None
+    
     probs = np.array([ homophily[labels[source],labels[n]] * (indegrees[n]+1) for n in targets])
     probs /= probs.sum()
     return np.random.choice(a=targets,size=1,replace=True,p=probs)[0]

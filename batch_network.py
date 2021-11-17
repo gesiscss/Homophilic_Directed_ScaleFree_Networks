@@ -52,7 +52,6 @@ def run(model, N, fm, d, ploM, plom, hMM, hmm, epoch, output):
     try:
         EMM, EMm, EmM, Emm = graph.get_edge_type_counts(g,True)
         pliM, plim = graph.get_indegree_powerlaw_exponents(g)
-
         t1 = "model,N,fm,d,plo_M,plo_m,pli_M,pli_m,EMM,EMm,EmM,Emm,hMM,hmm"
         t2 = ",".join([model, str(N), str(fm), str(d), str(ploM), str(plom), str(pliM.alpha), str(plim.alpha), 
                         str(EMM), str(EMm), str(EmM), str(Emm), str(hMM), str(hmm)])
