@@ -77,6 +77,7 @@ def DPAH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
         target = _pick_target(source, N, labels, indegrees, outdegrees, homophily)
         
         if target is None:
+            tries = 0
             continue
             
         nt = nodes[target]
