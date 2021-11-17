@@ -12,7 +12,7 @@ from statsmodels.iolib.summary2 import summary_col
 # Local dependencies
 ################################################################################
 from org.gesis.lib import io
-
+from org.gesis.lib import graph
 
 ################################################################################
 # Datasets summary
@@ -294,6 +294,11 @@ def _load_rank_synthetic(path, smooth=0.05, update=False):
             for c in ['N', 'fm', 'd', 'ploM', 'plom', 'hMM', 'hmm', 'epoch']:
                 tmp.loc[:,c] = _get_netmeta_from_fn(c, fn)
 
+            # load net
+            g = io.load_gpickle(fn.replace('_rank.csv','.gpickle'))
+            d = graph.get_density(g)
+            tmp.loc[:,'real_density'] = d
+            
             if df is None:
                 df = tmp.copy()
                 cols = df.columns
@@ -457,7 +462,7 @@ def _sort_cast_ranking_df(df):
     df[cint] = df[cint].astype(int)
 
     ### sorting columns
-    cols = ['dataset','kind','metric','N','fm','d','ploM','plom','hMM','hmm','epoch',
+    cols = ['dataset','kind','metric','N','fm','d','real_density','ploM','plom','hMM','hmm','epoch',
             'rank','fmt','gt','efmt','qe','aefmt','qae','dir',
             'gini','mae','me']
     

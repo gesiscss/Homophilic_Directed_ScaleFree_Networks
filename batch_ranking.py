@@ -35,6 +35,7 @@ def run(path, dataset):
     # create summary file
     root = path.split('/')[0] # resuts
     kind = path.split('/')[1] # synthetic, fit, empirical
+    
     # @TODO: make it work for fit and empirical nets
     if kind == 'synthetic':
         # only works for synthetic 
