@@ -13,7 +13,7 @@ Inequality and Inequity in Network-based Ranking and Recommendation Algorithms
 
 ## Publications
 1.  **Inequality and Inequity in Network-based Ranking and Recommendation Algorithms**
-Lisette Espín-Noboa, Claudia Wagner, Markus Strohmaier and Fariba Karimi. Under-review. 2021. https://arxiv.org/abs/2110.00072
+Lisette Espín-Noboa, Claudia Wagner, Markus Strohmaier and Fariba Karimi. Sci Rep 12, 2012 (2022). https://doi.org/10.1038/s41598-022-05434-1
 
 2.  **Towards Quantifying Sampling Bias in Network Inference.**
 Lisette Espín-Noboa, Fariba Karimi, Markus Strohmaier and Claudia Wagner. In LatinX in AI workshop at ICML. https://icml.cc/virtual/2020//7094
