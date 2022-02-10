@@ -1,0 +1,41 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Espin-Noboa"
+  given-names: "Lisette"
+  orcid: "https://orcid.org/0000-0002-3945-2966"
+- family-names: "Wagner"
+  given-names: "Claudia"
+  orcid: "https://orcid.org/0000-0002-0640-8221"
+- family-names: "Strohmaier"
+  given-names: "Markus"
+  orcid: "https://orcid.org/0000-0002-5485-5720"
+- family-names: "Karimi"
+  given-names: "Fariba"
+  orcid: "https://orcid.org/0000-0002-0037-2475"
+title: "Inequality and inequity in network-based ranking and recommendation algorithms"
+url: "https://github.com/gesiscss/Homophilic_Directed_ScaleFree_Network"
+preferred-citation:
+  type: article
+  authors:
+  - family-names: "Espin-Noboa"
+    given-names: "Lisette"
+    orcid: "https://orcid.org/0000-0002-3945-2966"
+  - family-names: "Wagner"
+    given-names: "Claudia"
+    orcid: "https://orcid.org/0000-0002-0640-8221"
+  - family-names: "Strohmaier"
+    given-names: "Markus"
+    orcid: "https://orcid.org/0000-0002-5485-5720"
+  - family-names: "Karimi"
+    given-names: "Fariba"
+    orcid: "https://orcid.org/0000-0002-0037-2475"
+  doi: "10.1038/s41598-022-05434-1"
+  journal: "Scientific Reports"
+  month: 2
+  start: 1 # First page number
+  end: 14 # Last page number
+  title: " Inequality and inequity in network-based ranking and recommendation algorithms."
+  issue: 1
+  volume: 12
+  year: 2022
