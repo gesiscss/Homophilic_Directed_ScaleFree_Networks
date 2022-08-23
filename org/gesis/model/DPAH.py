@@ -54,8 +54,8 @@ def DPAH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
     activity /= activity.sum()
     
     # 5. Init homophily
-    h_mm = EPSILON if h_mm == 0 else h_mm
-    h_MM = EPSILON if h_MM == 0 else h_MM
+    h_mm = EPSILON if h_mm == 0 else 1-EPSILON if h_mm == 1 else h_mm
+    h_MM = EPSILON if h_MM == 0 else 1-EPSILON if h_MM == 1 else h_MM
     homophily = np.array([[h_MM, 1-h_MM],[1-h_mm, h_mm]])
     
     # INIT SUMMARY
@@ -93,7 +93,7 @@ def DPAH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
             lt = labels[target]
             print("{}->{} ({}{}): {}".format(ns, nt, 'm' if ls else 'M', 'm' if lt else 'M', G.number_of_edges()))
         
-        if tries > G.number_of_nodes():
+        if tries > N**2:
             # it does not find any more new connections
             print("\nEdge density ({}) might differ from {}. N{} fm{} seed{} hMM{} hmm{}\n".format(round(nx.density(G),5), 
                                                                                                 round(d,5),N,fm,seed,
