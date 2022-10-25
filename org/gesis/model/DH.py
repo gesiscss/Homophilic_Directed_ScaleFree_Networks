@@ -78,6 +78,7 @@ def DH(N, fm, d, plo_M, plo_m, h_MM, h_mm, verbose=False, seed=None):
         if not G.has_edge(ns, nt):
             G.add_edge(ns, nt)
             indegrees[target] += 1
+            outdegrees[source] += 1
 
         if verbose:
             ls = labels[source]
@@ -130,7 +131,8 @@ def _pick_target(source, N, labels, indegrees, outdegrees, homophily):
     The target node must have out_degree > 0 (the older the node in the network, the more likely to get more links)
     '''
     one_percent = N * 1/100.
-    targets = [n for n in np.arange(N) if n!=source and (outdegrees[n]>0 if outdegrees.sum()>one_percent else True)]
+    targets = [n for n in np.arange(N) if n!=source] if outdegrees.sum()<=one_percent else [n for n in np.arange(N) if n!=source and outdegrees[n]>0]
+    #targets = [n for n in np.arange(N) if n!=source and (outdegrees[n]>0 if outdegrees.sum()>one_percent else True)]
     probs = np.array([ homophily[labels[source],labels[n]] for n in targets])
     probs /= probs.sum()
     return np.random.choice(a=targets,size=1,replace=True,p=probs)[0]
